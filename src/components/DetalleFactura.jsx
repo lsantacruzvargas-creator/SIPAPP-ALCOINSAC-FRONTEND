@@ -232,7 +232,7 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
               </button>
               <span className="w-px h-8 bg-white/20" />
               <div>
-                <p className="text-[10px] font-semibold text-white/60 uppercase tracking-widest leading-none">Factura</p>
+                <p className="text-lg font-bold text-white uppercase tracking-widest leading-none">Factura</p>
                 <h1 className="text-lg font-bold font-mono leading-tight">
                   {inicial.codigo}
                   {inicial.numeroDocumento != null && (
@@ -411,13 +411,13 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Relaciones</h2>
             </div>
 
-            <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} vacio={!cot}
+            <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} numero={cot?.numeroCotizacion} vacio={!cot}
               onClick={cot ? () => onNavegar?.({ tipo: "cotizacion", data: cot }) : undefined}>
               <p className="text-sm text-gray-700 line-clamp-2">{cot?.titulo}</p>
               {cot?.total > 0 && <p className="text-xs text-gray-500">{money(cot.total)}</p>}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="ot" codigo={ot?.codigo} vacio={!ot}
+            <TarjetaRelacion tipo="ot" codigo={ot?.codigo} numero={ot?.numeroOT} vacio={!ot}
               onClick={ot ? () => onNavegar?.({ tipo: "ot", data: ot }) : undefined}>
               {ot?.estado && <Chip className={badgeOT(ot.estado)}>{ot.estado}</Chip>}
               {ot?.personalEncargado?.nombre && (
@@ -439,15 +439,13 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
               )}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="oc" codigo={oc?.codigo} vacio={!oc}
+            <TarjetaRelacion tipo="oc" codigo={oc?.codigo} numero={oc?.numeroOrden} vacio={!oc}
               onClick={oc ? abrirOC : undefined} cargando={cargandoOC}>
-              {oc?.numeroOrden && <p className="text-sm text-gray-700">{oc.numeroOrden}</p>}
               {oc?.titulo && <p className="text-xs text-gray-500 line-clamp-2">{oc.titulo}</p>}
               {(oc?.monto || oc?.total) > 0 && <p className="text-xs text-gray-500">{money(oc.monto ?? oc.total)}</p>}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="factura" codigo={inicial.codigo} actual>
-              {inicial.numeroFactura && <p className="text-sm text-gray-600">{inicial.numeroFactura}</p>}
+            <TarjetaRelacion tipo="factura" codigo={inicial.codigo} numero={inicial.numeroFactura} actual>
               {inicial.estadoPago && <Chip className={badgePago(inicial.estadoPago)}>{inicial.estadoPago}</Chip>}
             </TarjetaRelacion>
           </section>

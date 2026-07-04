@@ -151,7 +151,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
             </button>
             <span className="w-px h-8 bg-white/20" />
             <div>
-              <p className="text-[10px] font-semibold text-white/60 uppercase tracking-widest leading-none">Orden de Trabajo</p>
+              <p className="text-lg font-bold text-white uppercase tracking-widest leading-none">Orden de Trabajo</p>
               <h1 className="text-lg font-bold font-mono leading-tight">
                 {ot.codigo}
                 {ot.numeroDocumento != null && (
@@ -301,15 +301,14 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Relaciones</h2>
             </div>
 
-            <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} vacio={!cot}
+            <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} numero={cot?.numeroCotizacion} vacio={!cot}
               onClick={cot ? () => onNavegar?.({ tipo: "cotizacion", data: cot }) : undefined}>
               <p className="text-sm text-gray-700 line-clamp-2">{cot?.titulo}</p>
               {cot?.total > 0 && <p className="text-xs text-gray-500">{money(cot.total)}</p>}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="ot" codigo={ot.codigo} actual>
+            <TarjetaRelacion tipo="ot" codigo={ot.codigo} numero={ot.numeroOT} actual>
               {ot.estado && <Chip className={badgeOT(ot.estado)}>{ot.estado}</Chip>}
-              {ot.numeroOT && <p className="text-xs text-gray-500">N° OT: {ot.numeroOT}</p>}
             </TarjetaRelacion>
 
             <TarjetaRelacion
@@ -323,16 +322,14 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               )}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="oc" codigo={oc?.codigo} vacio={!oc}
+            <TarjetaRelacion tipo="oc" codigo={oc?.codigo} numero={oc?.numeroOrden} vacio={!oc}
               onClick={oc ? () => onNavegar?.({ tipo: "oc", data: oc, extra: factura }) : undefined}
               onCrear={!oc && cot && !ot.anulado ? () => setCrearOCOpen(true) : undefined} crearLabel="OC">
-              {oc?.numeroOrden && <p className="text-sm text-gray-700">{oc.numeroOrden}</p>}
               {oc?.monto > 0 && <p className="text-xs text-gray-500">{money(oc.monto)}</p>}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="factura" codigo={factura?.codigo} vacio={!factura}
+            <TarjetaRelacion tipo="factura" codigo={factura?.codigo} numero={factura?.numeroFactura} vacio={!factura}
               onClick={factura ? () => onNavegar?.({ tipo: "factura", data: factura }) : undefined}>
-              {factura?.numeroFactura && <p className="text-sm text-gray-700">{factura.numeroFactura}</p>}
               {(factura?.totalAPagar || factura?.total) > 0 && (
                 <p className="text-xs text-gray-500">{money(factura.totalAPagar ?? factura.total)}</p>
               )}

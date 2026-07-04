@@ -10,9 +10,17 @@ import {
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-full transition";
 
+function calcular(sub) {
+  const s = Math.round(Number(sub) * 100) / 100 || 0;
+  const igv = Math.round(s * 0.18 * 100) / 100;
+  return { subtotal: s, igv, total: Math.round((s + igv) * 100) / 100 };
+}
+
 export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuardada, onNavegar }) {
   const [cot, setCot] = useState(inicial);
+  const subtotalInicial = inicial.subtotal ?? 0;
   const [form, setForm] = useState({
+    subtotal:           subtotalInicial > 0 ? String(subtotalInicial) : "",
     empresa:            inicial.empresa?._id     || "",
     tipo:               inicial.tipo             || "venta",
     condicionPago:      inicial.condicionPago    || "",
@@ -25,6 +33,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     numeroGuiaEmision:  inicial.numeroGuiaEmision  || "",
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
   });
+  const [calc, setCalc] = useState(() => calcular(subtotalInicial));
   const [empresas, setEmpresas] = useState([]);
   const [ot, setOt]             = useState(null);
   const [informes, setInformes] = useState([]);
@@ -71,6 +80,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === "subtotal") setCalc(calcular(value));
     setForm(prev => ({
       ...prev,
       [name]: value,
@@ -88,6 +98,9 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
       numeroCotizacion:   form.numeroCotizacion,
       encargado:          form.encargado,
       planta:             form.planta,
+      subtotal:           calc.subtotal,
+      igv:                calc.igv,
+      total:              calc.total,
       numeroGuiaEmision:  form.numeroGuiaEmision,
       numeroGuiaRemision: form.numeroGuiaRemision,
     };
@@ -147,7 +160,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
             </button>
             <span className="w-px h-8 bg-white/20" />
             <div>
-              <p className="text-[10px] font-semibold text-white/60 uppercase tracking-widest leading-none">Cotización</p>
+              <p className="text-lg font-bold text-white uppercase tracking-widest leading-none">Cotización</p>
               <h1 className="text-lg font-bold font-mono leading-tight">
                 {cot.codigo}
                 {cot.numeroDocumento != null && (
@@ -321,20 +334,21 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               </div>
             )}
 
-            {/* Totales */}
-            <div className="rounded-xl bg-gradient-to-br from-gray-50 to-sky-50/40 border border-gray-100 p-4">
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div className="text-center">
-                  <p className="text-xs text-gray-400">Subtotal</p>
-                  <p className="font-semibold text-gray-700">{Number(cot.subtotal ?? 0).toFixed(2)}</p>
-                </div>
+            {/* Cálculos */}
+            <div className="rounded-xl bg-gradient-to-br from-gray-50 to-sky-50/40 border border-gray-100 p-4 space-y-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Subtotal sin IGV</label>
+                <input type="number" name="subtotal" value={form.subtotal} onChange={handleChange}
+                  step="0.01" min="0" placeholder="0.00" className={`${INP} text-lg font-semibold`} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="text-center">
                   <p className="text-xs text-gray-400">IGV 18%</p>
-                  <p className="font-semibold text-gray-700">{Number(cot.igv ?? 0).toFixed(2)}</p>
+                  <p className="font-semibold text-gray-700">{calc.igv.toFixed(2)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-gray-400">Total</p>
-                  <p className="font-semibold text-gray-700">{Number(cot.total ?? 0).toFixed(2)}</p>
+                  <p className="font-semibold text-gray-700">{calc.total.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -349,15 +363,14 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Relaciones</h2>
             </div>
 
-            <TarjetaRelacion tipo="cotizacion" codigo={cot.codigo} actual>
+            <TarjetaRelacion tipo="cotizacion" codigo={cot.codigo} numero={cot.numeroCotizacion} actual>
               <p className="text-sm text-gray-600 line-clamp-2">{cot.titulo}</p>
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="ot" codigo={ot?.codigo} vacio={!ot}
+            <TarjetaRelacion tipo="ot" codigo={ot?.codigo} numero={ot?.numeroOT} vacio={!ot}
               onClick={ot ? () => onNavegar?.({ tipo: "ot", data: ot }) : undefined}
               onCrear={!ot && !cot.anulado ? () => setCrearOTOpen(true) : undefined} crearLabel="OT">
               {ot?.estado && <Chip className={badgeOT(ot.estado)}>{ot.estado}</Chip>}
-              {ot?.numeroOT && <p className="text-xs text-gray-500">N° OT: {ot.numeroOT}</p>}
             </TarjetaRelacion>
 
             <TarjetaRelacion
@@ -371,16 +384,14 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               )}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="oc" codigo={oc?.codigo} vacio={!oc}
+            <TarjetaRelacion tipo="oc" codigo={oc?.codigo} numero={oc?.numeroOrden} vacio={!oc}
               onClick={oc ? () => onNavegar?.({ tipo: "oc", data: oc, extra: factura }) : undefined}
               onCrear={!oc && !cot.anulado ? () => setCrearOCOpen(true) : undefined} crearLabel="OC">
-              {oc?.numeroOrden && <p className="text-sm text-gray-700">{oc.numeroOrden}</p>}
               {oc?.monto > 0 && <p className="text-xs text-gray-500">{money(oc.monto)}</p>}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="factura" codigo={factura?.codigo} vacio={!factura}
+            <TarjetaRelacion tipo="factura" codigo={factura?.codigo} numero={factura?.numeroFactura} vacio={!factura}
               onClick={factura ? () => onNavegar?.({ tipo: "factura", data: factura }) : undefined}>
-              {factura?.numeroFactura && <p className="text-sm text-gray-700">{factura.numeroFactura}</p>}
               {(factura?.totalAPagar || factura?.total) > 0 && (
                 <p className="text-xs text-gray-500">{money(factura.totalAPagar ?? factura.total)}</p>
               )}

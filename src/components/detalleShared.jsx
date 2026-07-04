@@ -76,7 +76,7 @@ export function FlujoNegocio({ pasos }) {
 }
 
 /* ─── Tarjeta de relación ───────────────────────────────────────── */
-export function TarjetaRelacion({ tipo, codigo, children, vacio, actual, onClick, cargando, onCrear, crearLabel }) {
+export function TarjetaRelacion({ tipo, codigo, numero, children, vacio, actual, onClick, cargando, onCrear, crearLabel }) {
   const t = TEMAS[tipo];
   const Icon = t.icon;
   if (actual) {
@@ -92,6 +92,11 @@ export function TarjetaRelacion({ tipo, codigo, children, vacio, actual, onClick
             <p className="font-mono text-sm font-bold text-gray-500 truncate">{codigo || "—"}</p>
           </div>
         </div>
+        {numero && (
+          <p className="inline-block font-mono text-base font-extrabold text-gray-500 bg-gray-100 rounded-lg px-2.5 py-1 mb-1 tracking-wide">
+            {numero}
+          </p>
+        )}
         <div className="space-y-1">{children}</div>
       </div>
     );
@@ -140,6 +145,11 @@ export function TarjetaRelacion({ tipo, codigo, children, vacio, actual, onClick
           <p className="font-mono text-sm font-bold text-gray-800 truncate">{codigo || "—"}</p>
         </div>
       </div>
+      {numero && (
+        <p className={`inline-block font-mono text-base font-extrabold ${t.text} bg-white rounded-lg px-2.5 py-1 mb-1 shadow-sm tracking-wide`}>
+          {numero}
+        </p>
+      )}
       <div className="space-y-1">{children}</div>
     </div>
   );
