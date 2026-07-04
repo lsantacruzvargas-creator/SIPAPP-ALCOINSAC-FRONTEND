@@ -137,12 +137,12 @@ export default function ModalFactura({ cotizacion, onClose, onCreada, numeroOrde
                 placeholder="—" required className={`w-full ${INP}`} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">N° guía de emisión</label>
+              <label className="text-xs text-gray-500 block mb-1">N° guía de llegada</label>
               <input name="numeroGuiaEmision" value={form.numeroGuiaEmision} onChange={handleChange}
                 placeholder="—" className={`w-full ${INP}`} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">N° guía de remisión</label>
+              <label className="text-xs text-gray-500 block mb-1">N° guía de salida</label>
               <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange}
                 placeholder="—" className={`w-full ${INP}`} />
             </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
 import {
   FlujoNegocio, TarjetaRelacion, Chip,
-  badgeOT, money,
+  badgeOT, badgePago, money, BotonAnular, BannerAnulado,
 } from "./detalleShared";
 
 const INP    = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 w-full transition";
@@ -56,7 +56,7 @@ function BuscadorOC({ onSelect, onClose }) {
   );
 }
 
-export default function DetalleFactura({ factura: inicial, onClose, onGuardada, onIrAOC }) {
+export default function DetalleFactura({ factura: inicial, onClose, onGuardada, onNavegar }) {
   const subtotalInicial = inicial.subtotal ?? 0;
 
   const [form, setForm] = useState({
@@ -75,6 +75,7 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
   const [ocVinculada, setOC]      = useState(inicial.ordenCompra || null);
   const [empresas, setEmpresas]   = useState([]);
   const [buscadorOC, setBOC]      = useState(false);
+  const [cot, setCot]             = useState(inicial.cotizacion || null);
   const [ot, setOt]               = useState(null);
   const [informes, setInformes]   = useState([]);
   const [guardando, setGuardando] = useState(false);
@@ -92,30 +93,52 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
     const listaFact = resFact.ok ? await resFact.json() : [];
     const full  = listaOC.find(o => o._id === ocVinculada._id) || ocVinculada;
     const cotId = full.cotizacion?._id || full.cotizacion;
+    // Enlace directo (ordenCompra) primero, prefiriendo la que comparte
+    // numeroDocumento con la OC; cotizacion queda solo como último respaldo.
+    const porOC = listaFact.filter(f => (f.ordenCompra?._id || f.ordenCompra) === full._id);
     const factRelacionada =
-      listaFact.find(f => (f.cotizacion?._id  || f.cotizacion)  === cotId) ||
-      listaFact.find(f => (f.ordenCompra?._id || f.ordenCompra) === full._id) ||
+      porOC.find(f => f.numeroDocumento === full.numeroDocumento) ||
+      porOC[0] ||
+      listaFact.find(f => (f.cotizacion?._id || f.cotizacion) === cotId) ||
       inicial;
     setCargandoOC(false);
-    onIrAOC?.(full, factRelacionada);
+    onNavegar?.({ tipo: "oc", data: full, extra: factRelacionada });
   };
 
-  useEffect(() => {
+  const cargarRelaciones = () => {
     const cotId = inicial.cotizacion?._id || inicial.cotizacion;
+    const numDoc = inicial.numeroDocumento;
     Promise.all([
-      fetchAuth("/empresas").then(r => r.ok && r.json()),
+      fetchAuth("/cotizaciones").then(r => r.ok && r.json()),
       fetchAuth("/ordenes-trabajo").then(r => r.ok && r.json()),
-    ]).then(([emps, ots]) => {
-      setEmpresas(emps || []);
-      if (!cotId || !ots) return;
-      const found = ots.find(o => (o.cotizacion?._id || o.cotizacion) === cotId);
-      setOt(found || null);
-      if (found) {
-        fetchAuth(`/informes?ordenTrabajo=${found._id}`)
+    ]).then(([cots, ots]) => {
+      // La Factura no siempre trae su propia `cotizacion` (p.ej. creada por
+      // la cadena vía OC) — se resuelve por numeroDocumento compartido,
+      // usando el enlace directo solo como respaldo.
+      const cotResuelta =
+        (cots && numDoc != null && cots.find(c => c.numeroDocumento === numDoc)) ||
+        (cots && cotId && cots.find(c => c._id === cotId)) ||
+        null;
+      setCot(cotResuelta);
+
+      const otResuelta =
+        (ots && numDoc != null && ots.find(o => o.numeroDocumento === numDoc)) ||
+        (ots && cotResuelta && ots.find(o => (o.cotizacion?._id || o.cotizacion) === cotResuelta._id)) ||
+        null;
+      setOt(otResuelta || null);
+
+      if (otResuelta) {
+        fetchAuth(`/informes?ordenTrabajo=${otResuelta._id}`)
           .then(r => r.ok && r.json())
           .then(infs => setInformes(infs || []));
       }
     });
+  };
+
+  useEffect(() => {
+    fetchAuth("/empresas").then(r => r.ok && r.json()).then(emps => setEmpresas(emps || []));
+    cargarRelaciones();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const plantasEmpresa = empresas.find(e => e._id === form.empresa)?.plantas ?? [];
@@ -175,7 +198,16 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
     setGuardando(false);
   };
 
-  const cot    = inicial.cotizacion;
+  const anular = async (motivo) => {
+    const res = await fetchAuth(`/facturas/${inicial._id}/anular`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ motivo }),
+    });
+    if (res.ok) { onGuardada(await res.json()); }
+    else { setError("Error al anular el documento."); }
+  };
+
   const oc     = ocVinculada;
   const ultimo = informes[informes.length - 1];
 
@@ -201,7 +233,12 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
               <span className="w-px h-8 bg-white/20" />
               <div>
                 <p className="text-[10px] font-semibold text-white/60 uppercase tracking-widest leading-none">Factura</p>
-                <h1 className="text-lg font-bold font-mono leading-tight">{inicial.codigo}</h1>
+                <h1 className="text-lg font-bold font-mono leading-tight">
+                  {inicial.codigo}
+                  {inicial.numeroDocumento != null && (
+                    <span className="ml-2 text-xs font-normal text-white/60">Doc. N° {inicial.numeroDocumento}</span>
+                  )}
+                </h1>
                 {inicial.empresa && <p className="text-xs text-white/80 leading-tight">{inicial.empresa.razonSocial}</p>}
               </div>
             </div>
@@ -213,10 +250,13 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
                   <Chip className="mt-0.5 bg-white/20 text-white">{inicial.estadoPago}</Chip>
                 )}
               </div>
-              <button onClick={guardar} disabled={guardando}
-                className="bg-white text-emerald-700 text-sm px-5 py-2 rounded-lg hover:bg-emerald-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
-                {guardando ? "Guardando…" : "Guardar cambios"}
-              </button>
+              {!inicial.anulado && <BotonAnular onAnular={anular} />}
+              {!inicial.anulado && (
+                <button onClick={guardar} disabled={guardando}
+                  className="bg-white text-emerald-700 text-sm px-5 py-2 rounded-lg hover:bg-emerald-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
+                  {guardando ? "Guardando…" : "Guardar cambios"}
+                </button>
+              )}
             </div>
         </div>
       </div>
@@ -233,11 +273,15 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
         <div className="max-w-6xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Datos editables */}
-          <section className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
+          <fieldset disabled={inicial.anulado} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-5 rounded-full bg-emerald-500" />
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la factura</h2>
             </div>
+
+            {inicial.anulado && (
+              <BannerAnulado motivo={inicial.motivoAnulacion} por={inicial.anuladoPor} fecha={inicial.fechaAnulacion} />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -319,12 +363,12 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
                 )}
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">N° guía de emisión</label>
+                <label className="text-xs text-gray-500 block mb-1">N° guía de llegada</label>
                 <input name="numeroGuiaEmision" value={form.numeroGuiaEmision} onChange={handleChange}
                   placeholder="—" className={INP} />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">N° guía de remisión</label>
+                <label className="text-xs text-gray-500 block mb-1">N° guía de salida</label>
                 <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange}
                   placeholder="—" className={INP} />
               </div>
@@ -358,7 +402,7 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
             </div>
 
             {error && <p className="text-xs text-red-500">{error}</p>}
-          </section>
+          </fieldset>
 
           {/* Relaciones */}
           <section className="space-y-4">
@@ -367,19 +411,14 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Relaciones</h2>
             </div>
 
-            <TarjetaRelacion tipo="oc" codigo={oc?.codigo} vacio={!oc}
-              onClick={oc && onIrAOC ? abrirOC : undefined} cargando={cargandoOC}>
-              {oc?.numeroOrden && <p className="text-sm text-gray-700">{oc.numeroOrden}</p>}
-              {oc?.titulo && <p className="text-xs text-gray-500 line-clamp-2">{oc.titulo}</p>}
-              {(oc?.monto || oc?.total) > 0 && <p className="text-xs text-gray-500">{money(oc.monto ?? oc.total)}</p>}
-            </TarjetaRelacion>
-
-            <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} vacio={!cot}>
+            <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} vacio={!cot}
+              onClick={cot ? () => onNavegar?.({ tipo: "cotizacion", data: cot }) : undefined}>
               <p className="text-sm text-gray-700 line-clamp-2">{cot?.titulo}</p>
               {cot?.total > 0 && <p className="text-xs text-gray-500">{money(cot.total)}</p>}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="ot" codigo={ot?.codigo} vacio={!ot}>
+            <TarjetaRelacion tipo="ot" codigo={ot?.codigo} vacio={!ot}
+              onClick={ot ? () => onNavegar?.({ tipo: "ot", data: ot }) : undefined}>
               {ot?.estado && <Chip className={badgeOT(ot.estado)}>{ot.estado}</Chip>}
               {ot?.personalEncargado?.nombre && (
                 <p className="text-xs text-gray-500">Técnico: {ot.personalEncargado.nombre}</p>
@@ -398,6 +437,18 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
               {ultimo?.personalEncargado?.nombre && (
                 <p className="text-xs text-gray-500">Técnico: {ultimo.personalEncargado.nombre}</p>
               )}
+            </TarjetaRelacion>
+
+            <TarjetaRelacion tipo="oc" codigo={oc?.codigo} vacio={!oc}
+              onClick={oc ? abrirOC : undefined} cargando={cargandoOC}>
+              {oc?.numeroOrden && <p className="text-sm text-gray-700">{oc.numeroOrden}</p>}
+              {oc?.titulo && <p className="text-xs text-gray-500 line-clamp-2">{oc.titulo}</p>}
+              {(oc?.monto || oc?.total) > 0 && <p className="text-xs text-gray-500">{money(oc.monto ?? oc.total)}</p>}
+            </TarjetaRelacion>
+
+            <TarjetaRelacion tipo="factura" codigo={inicial.codigo} actual>
+              {inicial.numeroFactura && <p className="text-sm text-gray-600">{inicial.numeroFactura}</p>}
+              {inicial.estadoPago && <Chip className={badgePago(inicial.estadoPago)}>{inicial.estadoPago}</Chip>}
             </TarjetaRelacion>
           </section>
         </div>

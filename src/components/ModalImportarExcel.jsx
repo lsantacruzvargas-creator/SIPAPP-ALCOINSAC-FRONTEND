@@ -14,8 +14,8 @@ export const COLS_FACTURAS = [
   { key: "encargado",          label: "Encargado" },
   { key: "planta",             label: "Planta" },
   { key: "numeroOrdenCompra",  label: "N° OC" },
-  { key: "numeroGuiaEmision",  label: "Guía emisión" },
-  { key: "numeroGuiaRemision", label: "Guía remisión" },
+  { key: "numeroGuiaEmision",  label: "Guía de llegada" },
+  { key: "numeroGuiaRemision", label: "Guía de salida" },
 ];
 
 export const COLS_OC = [
@@ -30,6 +30,53 @@ export const COLS_OC = [
   { key: "planta",        label: "Planta" },
   { key: "numeroFactura", label: "N° Factura" },
 ];
+
+// Una fila crea y encadena Cotización + Orden de Trabajo + Orden de Compra +
+// Factura, todas con el mismo numeroDocumento. Descripción/Subtotal/Encargado/
+// Planta se comparten entre los 4 documentos — no hay un título por cada tipo.
+export const COLS_CADENA = [
+  { key: "ruc",                label: "RUC", requerido: true },
+  { key: "razonSocial",        label: "Razón Social" },
+  { key: "subtotal",           label: "Subtotal sin IGV", tipo: "numero", requerido: true },
+  { key: "encargado",          label: "Encargado" },
+  { key: "planta",             label: "Planta" },
+  { key: "descripcion",        label: "Descripción (título)" },
+  { key: "numeroCotizacion",   label: "N° Cotización" },
+  { key: "fechaRecibida",      label: "Fecha recibida", tipo: "fecha" },
+  { key: "numeroOT",           label: "N° OT" },
+  { key: "numeroOrdenCompra",  label: "N° Orden (OC)" },
+  { key: "numeroFactura",      label: "N° Factura" },
+  { key: "fechaEmision",       label: "Fecha emisión", tipo: "fecha" },
+  { key: "fechaCancelacion",   label: "Fecha cancelación", tipo: "fecha" },
+  { key: "numeroGuiaEmision",  label: "Guía de llegada" },
+  { key: "numeroGuiaRemision", label: "Guía de salida" },
+];
+
+// Una fila crea y encadena Cotización + Orden de Trabajo, y opcionalmente
+// también Orden de Compra (si trae N° de orden) — todos con el mismo
+// numeroDocumento. Factura se agrega después por separado y hereda el mismo
+// número automáticamente al enlazarse con la OC/cotización.
+export const COLS_COT_OT = [
+  { key: "ruc",                label: "RUC", requerido: true },
+  { key: "razonSocial",        label: "Razón Social" },
+  { key: "subtotal",           label: "Subtotal sin IGV", tipo: "numero", requerido: true },
+  { key: "encargado",          label: "Encargado" },
+  { key: "planta",             label: "Planta" },
+  { key: "descripcion",        label: "Descripción (título)" },
+  { key: "numeroCotizacion",   label: "N° Cotización" },
+  { key: "fechaRecibida",      label: "Fecha recibida", tipo: "fecha" },
+  { key: "numeroOT",           label: "N° OT" },
+  { key: "numeroOrdenCompra",  label: "N° Orden (OC)" },
+  { key: "numeroGuiaEmision",  label: "Guía de llegada" },
+  { key: "numeroGuiaRemision", label: "Guía de salida" },
+];
+
+const LABELS_DETALLE = {
+  cotizaciones: "cotizaciones",
+  ot:           "órdenes de trabajo",
+  oc:           "órdenes de compra",
+  facturas:     "facturas",
+};
 
 function parseFecha(v) {
   if (!v) return null;
@@ -64,7 +111,7 @@ export default function ModalImportarExcel({ tipo, columnas, endpoint, color = "
     columnas.forEach(col => { ejemplo[col.label] = ""; });
     const ws = XLSX.utils.json_to_sheet([ejemplo], { header: columnas.map(c => c.label) });
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, tipo);
+    XLSX.utils.book_append_sheet(wb, ws, tipo.slice(0, 31));
     XLSX.writeFile(wb, `plantilla-${tipo}.xlsx`);
   };
 
@@ -252,6 +299,18 @@ export default function ModalImportarExcel({ tipo, columnas, endpoint, color = "
                   </p>
                 </div>
               </div>
+              {resultado.detalle && (
+                <div className={`rounded-xl bg-gray-50 p-4 grid gap-2 text-center ${
+                  { 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4" }[Object.keys(resultado.detalle).length] || "grid-cols-4"
+                }`}>
+                  {Object.entries(resultado.detalle).map(([key, valor]) => (
+                    <div key={key}>
+                      <p className="text-lg font-bold text-gray-800">{valor}</p>
+                      <p className="text-[11px] text-gray-500">{LABELS_DETALLE[key] || key}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               {resultado.errores.length > 0 && (
                 <div className="rounded-xl bg-red-50 border border-red-100 p-3 max-h-32 overflow-y-auto">
                   <p className="text-xs font-semibold text-red-600 mb-1">Filas con error:</p>

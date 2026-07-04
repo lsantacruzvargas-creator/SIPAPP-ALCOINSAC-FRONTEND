@@ -144,8 +144,24 @@ function VistaDetalle({ cot, ie, ocVinculada, onVincularOC, vinculandoOC }) {
           <p className="text-sm">{new Date(cot.fecha).toLocaleDateString("es-PE")}</p>
         </div>
         <div>
+          <p className="text-xs text-gray-400 mb-0.5">Fecha recibida</p>
+          <p className="text-sm">{cot.fechaRecibida ? new Date(cot.fechaRecibida).toLocaleDateString("es-PE") : "—"}</p>
+        </div>
+        <div>
           <p className="text-xs text-gray-400 mb-0.5">Título</p>
           <p className="text-sm font-medium">{cot.titulo}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400 mb-0.5">N° Cotización</p>
+          <p className="text-sm">{cot.numeroCotizacion || "—"}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400 mb-0.5">N° guía de llegada</p>
+          <p className="text-sm">{cot.numeroGuiaEmision || "—"}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400 mb-0.5">N° guía de salida</p>
+          <p className="text-sm">{cot.numeroGuiaRemision || "—"}</p>
         </div>
       </div>
 
@@ -325,7 +341,11 @@ export default function ModalCotizacion({ cotizacion: inicial, onClose, onSaved 
       empresa: cot.empresa?._id || "",
       condicionPago: cot.condicionPago,
       fecha: cot.fecha ? new Date(cot.fecha).toISOString().split("T")[0] : "",
+      fechaRecibida: cot.fechaRecibida ? new Date(cot.fechaRecibida).toISOString().split("T")[0] : "",
       titulo: cot.titulo,
+      numeroCotizacion: cot.numeroCotizacion || "",
+      numeroGuiaEmision: cot.numeroGuiaEmision || "",
+      numeroGuiaRemision: cot.numeroGuiaRemision || "",
     });
     setItems((cot.items || []).map(itemDesdeDb));
     setEditando(true);
@@ -399,6 +419,7 @@ export default function ModalCotizacion({ cotizacion: inicial, onClose, onSaved 
       total,
     };
     if (!payload.empresa) delete payload.empresa;
+    if (!payload.fechaRecibida) delete payload.fechaRecibida;
 
     const res = await fetchAuth(`/cotizaciones/${cot._id}`, {
       method: "PUT",
@@ -534,6 +555,46 @@ export default function ModalCotizacion({ cotizacion: inicial, onClose, onSaved 
                     name="titulo"
                     value={form.titulo}
                     onChange={handleForm}
+                    className={`w-full ${INP}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Fecha recibida</label>
+                  <input
+                    type="date"
+                    name="fechaRecibida"
+                    value={form.fechaRecibida}
+                    onChange={handleForm}
+                    className={`w-full ${INP}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">N° Cotización</label>
+                  <input
+                    name="numeroCotizacion"
+                    value={form.numeroCotizacion}
+                    onChange={handleForm}
+                    placeholder="—"
+                    className={`w-full ${INP}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">N° guía de llegada</label>
+                  <input
+                    name="numeroGuiaEmision"
+                    value={form.numeroGuiaEmision}
+                    onChange={handleForm}
+                    placeholder="—"
+                    className={`w-full ${INP}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">N° guía de salida</label>
+                  <input
+                    name="numeroGuiaRemision"
+                    value={form.numeroGuiaRemision}
+                    onChange={handleForm}
+                    placeholder="—"
                     className={`w-full ${INP}`}
                   />
                 </div>

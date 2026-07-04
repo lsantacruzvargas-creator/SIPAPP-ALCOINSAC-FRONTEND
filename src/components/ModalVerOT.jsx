@@ -155,6 +155,26 @@ export default function ModalVerOT({ orden: inicial, onClose, onActualizada }) {
               <input value={ot.cotizacion?.codigo || "—"} disabled className={`${RO} font-mono`} />
             </div>
             <div>
+              <p className="text-xs text-gray-400 mb-1">N° OT</p>
+              <input value={ot.numeroOT || "—"} disabled className={RO} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Fecha recibida</p>
+              <input
+                value={ot.fechaRecibida ? new Date(ot.fechaRecibida).toLocaleDateString("es-PE") : "—"}
+                disabled
+                className={RO}
+              />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">N° guía de llegada</p>
+              <input value={ot.numeroGuiaEmision || "—"} disabled className={RO} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">N° guía de salida</p>
+              <input value={ot.numeroGuiaRemision || "—"} disabled className={RO} />
+            </div>
+            <div>
               <p className="text-xs text-gray-400 mb-1">Personal asignado</p>
               <input value={ot.personalAsignado?.nombre || "Sin asignar"} disabled className={RO} />
             </div>

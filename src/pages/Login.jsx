@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { version as APP_VERSION } from "../../package.json";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -41,7 +42,9 @@ export default function Login() {
             <span className="text-white font-bold">A</span>
           </div>
           <div>
-            <p className="font-bold text-gray-800">SIP App</p>
+            <p className="font-bold text-gray-800">
+              SIP App <span className="text-xs font-normal text-gray-400">v{APP_VERSION}</span>
+            </p>
             <p className="text-xs text-gray-400">Alcoinsac</p>
           </div>
         </div>

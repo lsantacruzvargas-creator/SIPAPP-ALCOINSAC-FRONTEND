@@ -64,8 +64,8 @@ export default function Navbar() {
               <button onClick={() => ir("/ordenes-trabajo")} className={linkCls("/ordenes-trabajo")}>OTs</button>
             )}
             {esComercial && (<>
-              <button onClick={() => ir("/cotizaciones")} className={linkCls("/cotizaciones")}>Presupuesto</button>
-              <button onClick={() => ir("/ordenes-compra")} className={linkCls("/ordenes-compra")}>OC</button>
+              <button onClick={() => ir("/cotizaciones")} className={linkCls("/cotizaciones")}>Ordenes de Trabajo</button>
+              <button onClick={() => ir("/ordenes-compra")} className={linkCls("/ordenes-compra")}>Ordenes de Compra</button>
               <button onClick={() => ir("/facturas")} className={linkCls("/facturas")}>Facturas</button>
               <button onClick={() => ir("/empresas")} className={linkCls("/empresas")}>Empresas</button>
             </>)}

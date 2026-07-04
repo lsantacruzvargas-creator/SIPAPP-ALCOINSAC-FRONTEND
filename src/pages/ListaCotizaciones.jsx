@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { fetchAuth } from "../utils/fetchAuth";
-import ModalCotizacion from "../components/ModalCotizacion";
+import DetalleDocumento from "../components/DetalleDocumento";
+import ModalImportarExcel, { COLS_COT_OT } from "../components/ModalImportarExcel";
 import * as XLSX from "xlsx";
 
 const MESES = [
@@ -11,8 +12,98 @@ const MESES = [
 
 const FILTROS_VACIO = { empresa: "", planta: "", ano: "", mes: "", tipo: "", oc: "", busqueda: "" };
 
-const codigosOTs = (ots) =>
-  ots?.length ? ots.map((o) => o.codigo).join(", ") : null;
+const TH = "px-4 py-3 font-semibold text-gray-500 whitespace-nowrap";
+
+const SORTS = [
+  { valor: "numeroOT",          label: "N° OT" },
+  { valor: "numeroCotizacion",  label: "N° Cotización" },
+  { valor: "fecha",             label: "Más reciente" },
+];
+
+// Comparador descendente: numérico si ambos parsean como número, si no
+// localeCompare; los valores vacíos van al final.
+const compararTexto = (na, nb) => {
+  if (!na && !nb) return 0;
+  if (!na) return 1;
+  if (!nb) return -1;
+  const numA = Number(na), numB = Number(nb);
+  if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+  return String(nb).localeCompare(String(na));
+};
+
+const numerosOT = (ots) =>
+  ots?.length ? ots.map((o) => o.numeroOT).filter(Boolean).join(", ") : null;
+
+function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, vacioMsg }) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <span className={`w-1.5 h-5 rounded-full ${acento}`} />
+        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">{titulo}</h3>
+        <span className="text-xs text-gray-400">({cotizaciones.length})</span>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm" style={{ minWidth: "1000px" }}>
+          <thead className="bg-gray-50 text-xs uppercase tracking-wide border-b-2 border-gray-200">
+            <tr>
+              <th className={`${TH} text-left`}>N° OT</th>
+              <th className={`${TH} text-left`}>N° Cotización</th>
+              <th className={`${TH} text-center`}>Fecha recibida</th>
+              <th className={`${TH} text-left`}>Empresa</th>
+              <th className={`${TH} text-left`}>Planta</th>
+              <th className={`${TH} text-left`}>Encargado</th>
+              <th className={`${TH} text-left`}>Descripción</th>
+              <th className={`${TH} text-right`}>Total sin IGV</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {cotizaciones.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td>
+              </tr>
+            ) : (
+              cotizaciones.map((c) => (
+                <tr
+                  key={c._id}
+                  className={`hover:bg-sky-50/65 cursor-pointer transition-colors ${c.anulado ? "opacity-50" : ""}`}
+                  onClick={() => onSelect(c)}
+                >
+                  <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">
+                    {numerosOT(otsPorCot.get(c._id)) || <span className="text-gray-300 font-sans">—</span>}
+                  </td>
+                  <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      {c.numeroCotizacion || <span className="text-gray-300 font-sans">—</span>}
+                      {c.anulado && (
+                        <span title={c.motivoAnulacion} className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 uppercase">
+                          Anulada
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-center text-gray-500 whitespace-nowrap">
+                    {c.fechaRecibida ? new Date(c.fechaRecibida).toLocaleDateString("es-PE") : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3.5 text-gray-700">
+                    {c.empresa?.razonSocial || <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3.5 text-gray-600">{c.planta || <span className="text-gray-300">—</span>}</td>
+                  <td className="px-4 py-3.5 text-gray-600">{c.encargado || <span className="text-gray-300">—</span>}</td>
+                  <td className="px-4 py-3.5 text-gray-700">{c.titulo}</td>
+                  <td className="px-4 py-3.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
+                    {Number(c.subtotal || Number(c.total) / 1.18).toFixed(2)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ListaCotizaciones() {
   const navigate = useNavigate();
@@ -23,8 +114,11 @@ export default function ListaCotizaciones() {
     oc: location.state?.filtroOC || "",
   });
   const [seleccionada, setSeleccionada] = useState(null);
+  const [importarOpen, setImportarOpen] = useState(false);
   const [otsPorCot, setOtsPorCot] = useState(new Map());
   const [ocPorCot, setOcPorCot] = useState(new Map());
+  const [facturaPorNumDoc, setFacturaPorNumDoc] = useState(new Map());
+  const [sortBy, setSortBy] = useState("numeroOT");
 
   const buildOtsMap = (ots) => {
     const m = new Map();
@@ -51,10 +145,17 @@ export default function ListaCotizaciones() {
       fetchAuth("/cotizaciones").then((r) => r.ok ? r.json() : []),
       fetchAuth("/ordenes-trabajo").then((r) => r.ok ? r.json() : []),
       fetchAuth("/ordenes-compra").then((r) => r.ok ? r.json() : []),
-    ]).then(([cots, ots, ocs]) => {
+      fetchAuth("/facturas").then((r) => r.ok ? r.json() : []),
+    ]).then(([cots, ots, ocs, facts]) => {
       setCotizaciones(cots);
       setOtsPorCot(buildOtsMap(ots));
       setOcPorCot(buildOcMap(ocs));
+      // Una cotización está "facturada" si su cadena (mismo numeroDocumento)
+      // tiene una factura con número de factura.
+      setFacturaPorNumDoc(new Map(
+        facts.filter((f) => f.numeroFactura && f.numeroDocumento != null)
+             .map((f) => [f.numeroDocumento, f.numeroFactura])
+      ));
     });
 
   useEffect(() => { cargar(); }, []);
@@ -89,30 +190,54 @@ export default function ListaCotizaciones() {
       (!filtros.oc  || (filtros.oc === "con" ? ocPorCot.has(c._id) : !ocPorCot.has(c._id))) &&
       (!q ||
         c.titulo?.toLowerCase().includes(q) ||
+        c.numeroCotizacion?.toLowerCase().includes(q) ||
+        numerosOT(otsPorCot.get(c._id))?.toLowerCase().includes(q) ||
+        ocPorCot.get(c._id)?.numeroOrden?.toLowerCase().includes(q) ||
+        facturaPorNumDoc.get(c.numeroDocumento)?.toLowerCase().includes(q) ||
         c.empresa?.razonSocial?.toLowerCase().includes(q) ||
         c.empresa?.ruc?.includes(q))
     );
   });
 
+  const primerNumeroOT = (c) => {
+    const ots = otsPorCot.get(c._id);
+    return ots?.map((o) => o.numeroOT).find(Boolean) || "";
+  };
+  filtradas.sort((a, b) => {
+    if (sortBy === "numeroCotizacion") return compararTexto(a.numeroCotizacion, b.numeroCotizacion);
+    if (sortBy === "fecha") return new Date(b.createdAt) - new Date(a.createdAt);
+    return compararTexto(primerNumeroOT(a), primerNumeroOT(b));
+  });
+
+  const esFacturada = (c) => c.numeroDocumento != null && facturaPorNumDoc.has(c.numeroDocumento);
+  const esCerrada = (c) => c.estadoCadena === "cerrado";
+  const cerradas = filtradas.filter((c) => esCerrada(c));
+  const pendientes = filtradas.filter((c) => !esCerrada(c) && !esFacturada(c));
+  const facturadas = filtradas.filter((c) => !esCerrada(c) && esFacturada(c));
+  const hayFiltro = Object.values(filtros).some(Boolean);
+
+  // Misma columnas que TablaCotizaciones — una hoja por cada tabla visible.
+  const filaCotizacion = (c) => ({
+    "N° OT":           numerosOT(otsPorCot.get(c._id)) || "—",
+    "N° Cotización":   c.numeroCotizacion || "—",
+    "Fecha recibida":  c.fechaRecibida ? new Date(c.fechaRecibida).toLocaleDateString("es-PE") : "—",
+    "Empresa":         c.empresa?.razonSocial || "—",
+    "Planta":          c.planta || "—",
+    "Encargado":       c.encargado || "—",
+    "Descripción":     c.titulo,
+    "Total sin IGV":   Number(c.subtotal || Number(c.total) / 1.18).toFixed(2),
+  });
+
   const exportarExcel = () => {
-    const datos = filtradas.map((c) => {
-      const codigos = codigosOTs(otsPorCot.get(c._id));
-      const oc      = ocPorCot.get(c._id);
-      return {
-        "Código":              c.codigo,
-        "Tipo":                c.tipo,
-        "N° OT":               codigos || "—",
-        "Empresa":             c.empresa ? `${c.empresa.alias} — ${c.empresa.razonSocial}` : "",
-        "RUC":                 c.empresa?.ruc ?? "",
-        "Título":              c.titulo,
-        "Fecha":               new Date(c.fecha).toLocaleDateString("es-PE"),
-        "Total - IGV":         (Number(c.total) / 1.18).toFixed(2),
-        "N° Orden de Compra":  oc?.numeroOrden || "—",
-      };
-    });
-    const ws = XLSX.utils.json_to_sheet(datos);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Cotizaciones");
+    [
+      ["Pendientes", pendientes],
+      ["Facturadas", facturadas],
+      ["Cerradas", cerradas],
+    ].forEach(([nombre, lista]) => {
+      const ws = XLSX.utils.json_to_sheet(lista.map(filaCotizacion));
+      XLSX.utils.book_append_sheet(wb, ws, nombre);
+    });
     XLSX.writeFile(wb, "cotizaciones.xlsx");
   };
 
@@ -130,6 +255,12 @@ export default function ListaCotizaciones() {
             className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition"
           >
             Exportar Excel
+          </button>
+          <button
+            onClick={() => setImportarOpen(true)}
+            className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition"
+          >
+            Importar Cotización + OT
           </button>
           <button
             onClick={() => navigate("/cotizaciones/nueva")}
@@ -192,9 +323,15 @@ export default function ListaCotizaciones() {
           name="busqueda"
           value={filtros.busqueda}
           onChange={handleFiltro}
-          placeholder="Buscar por empresa, RUC o título…"
+          placeholder="Buscar por N° OT, cotización, OC, factura, título, empresa o RUC…"
           className={`${SELECT} flex-1 min-w-52`}
         />
+
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={SELECT}>
+          {SORTS.map(({ valor, label }) => (
+            <option key={valor} value={valor}>Ordenar: {label}</option>
+          ))}
+        </select>
 
         {Object.values(filtros).some(Boolean) && (
           <button
@@ -206,93 +343,54 @@ export default function ListaCotizaciones() {
         )}
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
-          <thead className="bg-gray-500 text-white text-xs uppercase">
-            <tr>
-              <th className="px-4 py-3 text-left">Código</th>
-              <th className="px-4 py-3 text-left">Tipo</th>
-              <th className="px-4 py-3 text-center">N° OT</th>
-              <th className="px-4 py-3 text-left">Empresa</th>
-              <th className="px-4 py-3 text-left">Título</th>
-              <th className="px-4 py-3 text-center">Fecha</th>
-              <th className="px-4 py-3 text-right">Total sin IGV</th>
-              <th className="px-4 py-3 text-center">N° Orden de Compra</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtradas.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
-                  {Object.values(filtros).some(Boolean)
-                    ? "Sin resultados para los filtros aplicados"
-                    : "Sin cotizaciones registradas"}
-                </td>
-              </tr>
-            ) : (
-              filtradas.map((c) => (
-                <tr
-                  key={c._id}
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => setSeleccionada(c)}
-                >
-                  <td className="px-4 py-3 font-mono text-ms text-black">{c.codigo}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
-                        c.tipo === "venta"
-                          ? "bg-blue-50 text-blue-700"
-                          : "bg-purple-50 text-purple-700"
-                      }`}
-                    >
-                      {c.tipo}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center font-mono text-xs text-emerald-700">
-                    {codigosOTs(otsPorCot.get(c._id)) || <span className="text-gray-300 font-sans">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {c.empresa ? (
-                      <span>
-                        {/* <span className="font-medium">{c.empresa.alias}</span> */}
-                        <span className="text-gray-600">  {c.empresa.razonSocial}</span>
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">Sin empresa</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{c.titulo}</td>
-                  <td className="px-4 py-3 text-center text-gray-500">
-                    {new Date(c.fecha).toLocaleDateString("es-PE")}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium">
-                    {(Number(c.total) / 1.18).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-center font-mono text-ms text-gray-700">
-                    {ocPorCot.get(c._id)?.numeroOrden || <span className="text-gray-300">—</span>}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
-      </div>
+      <TablaCotizaciones
+        titulo="Cotizaciones pendientes de OC"
+        acento="bg-amber-500"
+        cotizaciones={pendientes}
+        otsPorCot={otsPorCot}
+        onSelect={setSeleccionada}
+        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones pendientes"}
+      />
+
+      <TablaCotizaciones
+        titulo="Cotizaciones facturadas"
+        acento="bg-emerald-500"
+        cotizaciones={facturadas}
+        otsPorCot={otsPorCot}
+        onSelect={setSeleccionada}
+        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones facturadas"}
+      />
+
+      <TablaCotizaciones
+        titulo="Cotizaciones cerradas"
+        acento="bg-gray-500"
+        cotizaciones={cerradas}
+        otsPorCot={otsPorCot}
+        onSelect={setSeleccionada}
+        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones cerradas"}
+      />
     </div>
 
+    {importarOpen && (
+      <ModalImportarExcel
+        tipo="Cotización + Orden de Trabajo"
+        columnas={COLS_COT_OT}
+        endpoint="/cadena/importar-cotizacion-ot"
+        color="blue"
+        onClose={() => setImportarOpen(false)}
+        onImportado={cargar}
+      />
+    )}
+
     {seleccionada && (
-      <ModalCotizacion
-        cotizacion={seleccionada}
-        onClose={() => setSeleccionada(null)}
-        onSaved={(actualizada) => {
+      <DetalleDocumento
+        tipo="cotizacion"
+        data={seleccionada}
+        onClose={() => { setSeleccionada(null); cargar(); }}
+        onGuardadaCotizacion={(actualizada) => {
           setCotizaciones((prev) =>
             prev.map((c) => (c._id === actualizada._id ? actualizada : c))
           );
-          setSeleccionada(actualizada);
-          fetchAuth("/ordenes-trabajo").then((r) => r.ok && r.json())
-            .then((ots) => { if (ots) setOtsPorCot(buildOtsMap(ots)); });
         }}
       />
     )}

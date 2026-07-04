@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
+import ModalCrearFactura from "./ModalCrearFactura";
 import {
   FlujoNegocio, TarjetaRelacion, Chip,
-  badgePago, badgeOT, money,
+  badgePago, badgeOT, money, BotonAnular, BannerAnulado,
 } from "./detalleShared";
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 w-full transition";
@@ -15,7 +16,7 @@ function calcular(sub) {
   return { igv, total, detraccion, totalAPagar: Math.round((total - detraccion) * 100) / 100 };
 }
 
-export default function DetalleOrdenCompra({ orden, onClose, onGuardada, facturaVinculada, onIrAFactura }) {
+export default function DetalleOrdenCompra({ orden, onClose, onGuardada, facturaVinculada, onNavegar }) {
   const subtotalInicial = orden.subtotal ?? orden.monto ?? 0;
 
   const [form, setForm] = useState({
@@ -27,6 +28,8 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
     descripcion:   orden.descripcion   || "",
     encargado:     orden.encargado     || "",
     planta:        orden.planta        || "",
+    numeroGuiaEmision:  orden.numeroGuiaEmision  || "",
+    numeroGuiaRemision: orden.numeroGuiaRemision || "",
   });
   const [calc, setCalc]           = useState(calcular(subtotalInicial));
   const [empresas, setEmpresas]   = useState([]);
@@ -35,6 +38,7 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
   const [guardando, setGuardando] = useState(false);
   const [error, setError]         = useState("");
   const [cargandoFactura, setCargandoFactura] = useState(false);
+  const [crearFacturaOpen, setCrearFacturaOpen] = useState(false);
 
   const abrirFactura = async () => {
     if (!facturaVinculada || cargandoFactura) return;
@@ -43,16 +47,12 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
     const lista = res.ok ? await res.json() : [];
     const full = lista.find(f => f._id === facturaVinculada._id) || facturaVinculada;
     setCargandoFactura(false);
-    onIrAFactura?.(full);
+    onNavegar?.({ tipo: "factura", data: full });
   };
 
-  useEffect(() => {
+  const cargarOTeInformes = () => {
     const cotId = orden.cotizacion?._id || orden.cotizacion;
-    Promise.all([
-      fetchAuth("/empresas").then(r => r.ok && r.json()),
-      fetchAuth("/ordenes-trabajo").then(r => r.ok && r.json()),
-    ]).then(([emps, ots]) => {
-      setEmpresas(emps || []);
+    fetchAuth("/ordenes-trabajo").then(r => r.ok && r.json()).then(ots => {
       if (!cotId || !ots) return;
       const found = ots.find(o => (o.cotizacion?._id || o.cotizacion) === cotId);
       setOt(found || null);
@@ -62,6 +62,12 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
           .then(infs => setInformes(infs || []));
       }
     });
+  };
+
+  useEffect(() => {
+    fetchAuth("/empresas").then(r => r.ok && r.json()).then(emps => setEmpresas(emps || []));
+    cargarOTeInformes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const plantasEmpresa = empresas.find(e => e._id === form.empresa)?.plantas ?? [];
@@ -89,6 +95,8 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
       descripcion:   form.descripcion,
       encargado:     form.encargado,
       planta:        form.planta,
+      numeroGuiaEmision:  form.numeroGuiaEmision,
+      numeroGuiaRemision: form.numeroGuiaRemision,
     };
     if (form.empresa) payload.empresa = form.empresa;
 
@@ -100,6 +108,16 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
     if (res.ok) { onGuardada(await res.json()); }
     else { setError("Error al guardar los cambios."); }
     setGuardando(false);
+  };
+
+  const anular = async (motivo) => {
+    const res = await fetchAuth(`/ordenes-compra/${orden._id}/anular`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ motivo }),
+    });
+    if (res.ok) { onGuardada(await res.json()); }
+    else { setError("Error al anular el documento."); }
   };
 
   const cot     = orden.cotizacion;
@@ -127,7 +145,12 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
               <span className="w-px h-8 bg-white/20" />
               <div>
                 <p className="text-[10px] font-semibold text-white/60 uppercase tracking-widest leading-none">Orden de Compra</p>
-                <h1 className="text-lg font-bold font-mono leading-tight">{orden.codigo}</h1>
+                <h1 className="text-lg font-bold font-mono leading-tight">
+                  {orden.codigo}
+                  {orden.numeroDocumento != null && (
+                    <span className="ml-2 text-xs font-normal text-white/60">Doc. N° {orden.numeroDocumento}</span>
+                  )}
+                </h1>
                 {orden.empresa && <p className="text-xs text-white/80 leading-tight">{orden.empresa.razonSocial}</p>}
               </div>
             </div>
@@ -139,10 +162,13 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
                   <Chip className="mt-0.5 bg-white/20 text-white">{factura.estadoPago}</Chip>
                 )}
               </div>
-              <button onClick={guardar} disabled={guardando}
-                className="bg-white text-blue-700 text-sm px-5 py-2 rounded-lg hover:bg-blue-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
-                {guardando ? "Guardando…" : "Guardar cambios"}
-              </button>
+              {!orden.anulado && <BotonAnular onAnular={anular} />}
+              {!orden.anulado && (
+                <button onClick={guardar} disabled={guardando}
+                  className="bg-white text-blue-700 text-sm px-5 py-2 rounded-lg hover:bg-blue-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
+                  {guardando ? "Guardando…" : "Guardar cambios"}
+                </button>
+              )}
             </div>
         </div>
       </div>
@@ -159,11 +185,15 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
         <div className="max-w-6xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Datos editables */}
-          <section className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
+          <fieldset disabled={orden.anulado} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-5 rounded-full bg-blue-500" />
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la orden</h2>
             </div>
+
+            {orden.anulado && (
+              <BannerAnulado motivo={orden.motivoAnulacion} por={orden.anuladoPor} fecha={orden.fechaAnulacion} />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -218,6 +248,19 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
                 placeholder="Descripción del servicio u obra" className={INP} />
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">N° guía de llegada</label>
+                <input name="numeroGuiaEmision" value={form.numeroGuiaEmision} onChange={handleChange}
+                  placeholder="—" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">N° guía de salida</label>
+                <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange}
+                  placeholder="—" className={INP} />
+              </div>
+            </div>
+
             {/* Cálculos */}
             <div className="rounded-xl bg-gradient-to-br from-gray-50 to-blue-50/40 border border-gray-100 p-4 space-y-4">
               <div>
@@ -246,7 +289,7 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
             </div>
 
             {error && <p className="text-xs text-red-500">{error}</p>}
-          </section>
+          </fieldset>
 
           {/* Relaciones */}
           <section className="space-y-4">
@@ -255,12 +298,14 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Relaciones</h2>
             </div>
 
-            <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} vacio={!cot}>
+            <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} vacio={!cot}
+              onClick={cot ? () => onNavegar?.({ tipo: "cotizacion", data: cot }) : undefined}>
               <p className="text-sm text-gray-700 line-clamp-2">{cot?.titulo}</p>
               {cot?.total > 0 && <p className="text-xs text-gray-500">{money(cot.total)}</p>}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="ot" codigo={ot?.codigo} vacio={!ot}>
+            <TarjetaRelacion tipo="ot" codigo={ot?.codigo} vacio={!ot}
+              onClick={ot ? () => onNavegar?.({ tipo: "ot", data: ot }) : undefined}>
               {ot?.estado && <Chip className={badgeOT(ot.estado)}>{ot.estado}</Chip>}
               {ot?.personalEncargado?.nombre && (
                 <p className="text-xs text-gray-500">Técnico: {ot.personalEncargado.nombre}</p>
@@ -281,8 +326,13 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
               )}
             </TarjetaRelacion>
 
+            <TarjetaRelacion tipo="oc" codigo={orden.codigo} actual>
+              {orden.numeroOrden && <p className="text-sm text-gray-600">{orden.numeroOrden}</p>}
+            </TarjetaRelacion>
+
             <TarjetaRelacion tipo="factura" codigo={factura?.codigo} vacio={!factura}
-              onClick={factura && onIrAFactura ? abrirFactura : undefined} cargando={cargandoFactura}>
+              onClick={factura ? abrirFactura : undefined} cargando={cargandoFactura}
+              onCrear={!factura && !orden.anulado ? () => setCrearFacturaOpen(true) : undefined} crearLabel="Factura">
               {factura?.numeroFactura && <p className="text-sm text-gray-700">{factura.numeroFactura}</p>}
               {(factura?.totalAPagar || factura?.total) > 0 && (
                 <p className="text-xs text-gray-500">{money(factura.totalAPagar ?? factura.total)}</p>
@@ -292,6 +342,14 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
           </section>
         </div>
       </div>
+
+      {crearFacturaOpen && (
+        <ModalCrearFactura
+          ocInicial={orden}
+          onClose={() => setCrearFacturaOpen(false)}
+          onCreada={(nueva) => { setCrearFacturaOpen(false); onNavegar?.({ tipo: "factura", data: nueva }); }}
+        />
+      )}
     </div>
   );
 }

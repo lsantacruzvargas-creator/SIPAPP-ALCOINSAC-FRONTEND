@@ -30,6 +30,12 @@ export default function ModalEditarOT({ orden, onClose, onGuardada }) {
       ? new Date(orden.fechaEntrega).toISOString().split("T")[0]
       : "",
     personalAsignado: orden.personalAsignado?._id || "",
+    fechaRecibida: orden.fechaRecibida
+      ? new Date(orden.fechaRecibida).toISOString().split("T")[0]
+      : "",
+    numeroOT: orden.numeroOT || "",
+    numeroGuiaEmision: orden.numeroGuiaEmision || "",
+    numeroGuiaRemision: orden.numeroGuiaRemision || "",
   });
   const [usuarios, setUsuarios] = useState([]);
   const [guardando, setGuardando] = useState(false);
@@ -45,6 +51,7 @@ export default function ModalEditarOT({ orden, onClose, onGuardada }) {
     const body = { ...form };
     if (!body.personalAsignado) delete body.personalAsignado;
     if (!body.fechaEntrega) delete body.fechaEntrega;
+    if (!body.fechaRecibida) delete body.fechaRecibida;
 
     const res = await fetchAuth(`/ordenes-trabajo/${orden._id}`, {
       method: "PUT",
@@ -72,6 +79,27 @@ export default function ModalEditarOT({ orden, onClose, onGuardada }) {
           <div>
             <label className="text-xs text-gray-500 block mb-1">Título</label>
             <input name="titulo" value={form.titulo} onChange={handleChange} className={`w-full ${INP}`} />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">N° OT</label>
+            <input name="numeroOT" value={form.numeroOT} onChange={handleChange} placeholder="—" className={`w-full ${INP}`} />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
+            <input type="date" name="fechaRecibida" value={form.fechaRecibida} onChange={handleChange} className={`w-full ${INP}`} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">N° guía de llegada</label>
+              <input name="numeroGuiaEmision" value={form.numeroGuiaEmision} onChange={handleChange} placeholder="—" className={`w-full ${INP}`} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">N° guía de salida</label>
+              <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange} placeholder="—" className={`w-full ${INP}`} />
+            </div>
           </div>
 
           <div>

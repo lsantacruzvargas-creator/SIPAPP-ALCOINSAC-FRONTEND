@@ -52,16 +52,31 @@ function BuscadorOrdenCompra({ onSelect, onClose }) {
   );
 }
 
-export default function ModalCrearFactura({ onClose, onCreada }) {
+export default function ModalCrearFactura({ onClose, onCreada, ocInicial }) {
   const hoy = new Date().toISOString().split("T")[0];
-  const [form, setForm] = useState({
-    numeroFactura: "", numeroOrdenCompra: "",
-    fechaEmision: hoy, fechaCancelacion: "",
-    empresa: "", subtotal: "", descripcion: "",
-    encargado: "", planta: "", numeroGuiaEmision: "", numeroGuiaRemision: "",
+  // Si viene una OC ya conocida (p.ej. al crear la Factura desde la tarjeta
+  // vacía de una OC), se precarga como si se hubiera buscado y seleccionado
+  // manualmente — sin useEffect, para no disparar un setState en el montaje.
+  const [form, setForm] = useState(() => {
+    const base = {
+      numeroFactura: "", numeroOrdenCompra: "",
+      fechaEmision: hoy, fechaCancelacion: "",
+      empresa: "", subtotal: "", descripcion: "",
+      encargado: "", planta: "", numeroGuiaEmision: "", numeroGuiaRemision: "",
+    };
+    if (!ocInicial) return base;
+    return {
+      ...base,
+      numeroOrdenCompra: ocInicial.numeroOrden || "",
+      empresa:           ocInicial.empresa?._id || "",
+      subtotal:          ocInicial.subtotal > 0 ? String(ocInicial.subtotal) : "",
+      descripcion:       ocInicial.descripcion || ocInicial.titulo || "",
+      planta:            ocInicial.planta || "",
+      encargado:         ocInicial.encargado || "",
+    };
   });
-  const [calc, setCalc]           = useState(calcular(0));
-  const [ocVinculada, setOcVinc]  = useState(null);
+  const [calc, setCalc]           = useState(() => calcular(ocInicial?.subtotal > 0 ? ocInicial.subtotal : 0));
+  const [ocVinculada, setOcVinc]  = useState(ocInicial || null);
   const [empresas, setEmpresas]   = useState([]);
   const [buscadorOC, setBOC]      = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -107,34 +122,9 @@ export default function ModalCrearFactura({ onClose, onCreada }) {
     if (!form.subtotal || Number(form.subtotal) <= 0) return setError("El subtotal debe ser mayor a 0.");
     setError(""); setGuardando(true);
 
-    // Paso 1: crear factura
-    const factPayload = {
-      numeroFactura:      form.numeroFactura,
-      fechaEmision:       form.fechaEmision,
-      subtotal:           Number(form.subtotal),
-      descripcion:        form.descripcion,
-      encargado:          form.encargado,
-      planta:             form.planta,
-      numeroGuiaEmision:  form.numeroGuiaEmision,
-      numeroGuiaRemision: form.numeroGuiaRemision,
-    };
-    if (form.fechaCancelacion) factPayload.fechaCancelacion = form.fechaCancelacion;
-    if (form.empresa)          factPayload.empresa          = form.empresa;
-
-    const resF = await fetchAuth("/facturas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(factPayload),
-    });
-    if (!resF.ok) {
-      setError("No se pudo guardar la factura.");
-      setGuardando(false);
-      return;
-    }
-    const factura = await resF.json();
-
-    // Paso 2: OC existente vs nueva
-    let ocId = null;
+    // Paso 1: OC existente vs nueva — se resuelve ANTES de crear la factura para
+    // que esta nazca con `ordenCompra` ya seteado (así hereda su numeroDocumento).
+    let ocId;
 
     if (ocVinculada) {
       ocId = ocVinculada._id;
@@ -158,21 +148,42 @@ export default function ModalCrearFactura({ onClose, onCreada }) {
         body: JSON.stringify(ocPayload),
       });
       if (resOC.ok) { const newOC = await resOC.json(); ocId = newOC._id; }
+      else {
+        setError("No se pudo crear la orden de compra.");
+        setGuardando(false);
+        return;
+      }
     }
 
-    // Paso 3: vincular OC a la factura
-    let facturaFinal = factura;
-    if (ocId) {
-      const resLink = await fetchAuth(`/facturas/${factura._id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ordenCompra: ocId }),
-      });
-      if (resLink.ok) facturaFinal = await resLink.json();
+    // Paso 2: crear la factura, ya vinculada a la OC desde el inicio
+    const factPayload = {
+      numeroFactura:      form.numeroFactura,
+      fechaEmision:       form.fechaEmision,
+      subtotal:           Number(form.subtotal),
+      descripcion:        form.descripcion,
+      encargado:          form.encargado,
+      planta:             form.planta,
+      numeroGuiaEmision:  form.numeroGuiaEmision,
+      numeroGuiaRemision: form.numeroGuiaRemision,
+      ordenCompra:        ocId,
+    };
+    if (form.fechaCancelacion) factPayload.fechaCancelacion = form.fechaCancelacion;
+    if (form.empresa)          factPayload.empresa          = form.empresa;
+
+    const resF = await fetchAuth("/facturas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(factPayload),
+    });
+    if (!resF.ok) {
+      setError("No se pudo guardar la factura.");
+      setGuardando(false);
+      return;
     }
+    const factura = await resF.json();
 
     setExito(factura.codigo);
-    setTimeout(() => onCreada(facturaFinal), 1800);
+    setTimeout(() => onCreada(factura), 1800);
     setGuardando(false);
   };
 
@@ -289,11 +300,11 @@ export default function ModalCrearFactura({ onClose, onCreada }) {
               )}
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">N° guía de emisión</label>
+              <label className="text-xs text-gray-500 block mb-1">N° guía de llegada</label>
               <input name="numeroGuiaEmision" value={form.numeroGuiaEmision} onChange={handleChange} placeholder="—" className={INP} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">N° guía de remisión</label>
+              <label className="text-xs text-gray-500 block mb-1">N° guía de salida</label>
               <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange} placeholder="—" className={INP} />
             </div>
           </div>

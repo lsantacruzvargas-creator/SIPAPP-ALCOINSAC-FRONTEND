@@ -3,7 +3,7 @@ import { fetchAuth } from "../utils/fetchAuth";
 import DetalleDocumento from "../components/DetalleDocumento";
 import ModalCrearFactura  from "../components/ModalCrearFactura";
 import ModalImportarExcel, { COLS_FACTURAS } from "../components/ModalImportarExcel";
-import { DotChip, BarraPago, badgePago, dotPago } from "../components/detalleShared";
+import { DotChip, badgePago, dotPago } from "../components/detalleShared";
 import * as XLSX from "xlsx";
 
 const MESES = [
@@ -39,17 +39,181 @@ const SELECT = "border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outlin
 const TD_NUM = "px-3 py-3.5 text-right tabular-nums";
 const TH     = "px-3 py-3 font-semibold text-gray-500 whitespace-nowrap";
 
+const SORTS = [
+  { valor: "fecha",             label: "Más reciente" },
+  { valor: "numeroOT",          label: "N° OT" },
+  { valor: "numeroCotizacion",  label: "N° Cotización" },
+];
+
+// Comparador descendente: numérico si ambos parsean como número, si no
+// localeCompare; los valores vacíos van al final.
+const compararTexto = (na, nb) => {
+  if (!na && !nb) return 0;
+  if (!na) return 1;
+  if (!nb) return -1;
+  const numA = Number(na), numB = Number(nb);
+  if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+  return String(nb).localeCompare(String(na));
+};
+
+function TablaFacturas({ titulo, acento, facturas, onSelect, handlePagoCheck, vacioMsg }) {
+  // Las anuladas siguen visibles en la tabla, pero no cuentan en los totales
+  const noAnuladas = facturas.filter(f => !f.anulado);
+  const totales = {
+    subtotal:    noAnuladas.reduce((s, f) => s + (Number(f.subtotal ?? f.monto)    || 0), 0),
+    igv:         noAnuladas.reduce((s, f) => s + (Number(f.igv)                   || 0), 0),
+    total:       noAnuladas.reduce((s, f) => s + (Number(f.total)                 || 0), 0),
+    detraccion:  noAnuladas.reduce((s, f) => s + (Number(f.detraccion)            || 0), 0),
+    totalAPagar: noAnuladas.reduce((s, f) => s + (Number(f.totalAPagar)           || 0), 0),
+    pagado:      noAnuladas.reduce((s, f) => s + (Number(f.montoPagado)           || 0), 0),
+  };
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <span className={`w-1.5 h-5 rounded-full ${acento}`} />
+        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">{titulo}</h3>
+        <span className="text-xs text-gray-400">({facturas.length})</span>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ minWidth: "1000px" }}>
+            <thead className="bg-gray-50 text-xs uppercase tracking-wide border-b-2 border-gray-200">
+              <tr>
+                <th className={`${TH} text-left`}>N° OT</th>
+                <th className={`${TH} text-left`}>N° Factura</th>
+                <th className={`${TH} text-center`}>Fecha emisión</th>
+                <th className={`${TH} text-center`}>Fecha cancelación</th>
+                <th className={`${TH} text-left`}>Orden de Compra</th>
+                <th className={`${TH} text-left`}>Empresa</th>
+                <th className={`${TH} text-right`}>Subtotal</th>
+                <th className={`${TH} text-right`}>IGV 18%</th>
+                <th className={`${TH} text-right`}>Total</th>
+                <th className={`${TH} text-right`}>Detracción 12%</th>
+                <th className={`${TH} text-right`}>Total a pagar</th>
+                <th className={`${TH} text-center`}>Estado pago</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {facturas.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td>
+                </tr>
+              ) : (
+                <>
+                {facturas.map(f => (
+                  <tr key={f._id}
+                    className={`hover:bg-emerald-50/65 cursor-pointer transition-colors ${f.anulado ? "opacity-50" : ""}`}
+                    onClick={() => onSelect(f)}>
+                    <td className="px-3 py-3.5 text-gray-600 whitespace-nowrap">
+                      {f._numeroOT || <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-3.5 font-semibold text-gray-800 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        {f.numeroFactura || <span className="text-gray-300">—</span>}
+                        {f.anulado && (
+                          <span title={f.motivoAnulacion} className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 uppercase">
+                            Anulada
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3.5 text-center text-gray-500 whitespace-nowrap">
+                      {new Date(f.fechaEmision).toLocaleDateString("es-PE")}
+                    </td>
+                    <td className="px-3 py-3.5 text-center">
+                      <BadgeCancelacion fecha={f.fechaCancelacion} pagado={f.estadoPago === "pagado"} />
+                    </td>
+                    <td className="px-3 py-3.5 text-gray-600 whitespace-nowrap">
+                      {f.ordenCompra?.numeroOrden || f.numeroOrdenCompra || <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-3.5 text-gray-700">
+                      {f.empresa?.razonSocial || <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className={`${TD_NUM} text-gray-400`}>
+                      {Number(f.subtotal ?? f.monto ?? 0).toFixed(2)}
+                    </td>
+                    <td className={`${TD_NUM} text-gray-400`}>
+                      {Number(f.igv ?? 0).toFixed(2)}
+                    </td>
+                    <td className={`${TD_NUM} text-gray-600`}>
+                      {Number(f.total ?? 0).toFixed(2)}
+                    </td>
+                    <td className={`${TD_NUM} text-gray-400`}>
+                      {Number(f.detraccion ?? 0).toFixed(2)}
+                    </td>
+                    <td className={`${TD_NUM} font-bold text-gray-900`}>
+                      {Number(f.totalAPagar ?? 0).toFixed(2)}
+                    </td>
+                    <td className="px-3 py-2 text-center" onClick={e => e.stopPropagation()}>
+                      <div className="flex flex-col items-center gap-1.5 min-w-[110px]">
+                        <DotChip chip={badgePago(f.estadoPago)} dot={dotPago(f.estadoPago)}>
+                          {f.estadoPago}
+                        </DotChip>
+                        <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+                          <input type="checkbox"
+                            checked={f.estadoPago === "pagado"}
+                            onChange={e => handlePagoCheck(f._id, e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
+                          Pagado
+                        </label>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {/* Fila de totales */}
+                <tr className="bg-gray-50 border-t-2 border-gray-200 font-semibold text-sm">
+                  <td colSpan={6} className="px-3 py-3.5 text-right text-xs uppercase tracking-wide text-gray-400">
+                    Totales ({facturas.length})
+                  </td>
+                  <td className={`${TD_NUM} text-gray-500`}>{totales.subtotal.toFixed(2)}</td>
+                  <td className={`${TD_NUM} text-gray-500`}>{totales.igv.toFixed(2)}</td>
+                  <td className={`${TD_NUM} text-gray-700`}>{totales.total.toFixed(2)}</td>
+                  <td className={`${TD_NUM} text-gray-500`}>{totales.detraccion.toFixed(2)}</td>
+                  <td className={`${TD_NUM} font-bold text-gray-900`}>{totales.totalAPagar.toFixed(2)}</td>
+                  <td className="px-3 py-3.5 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="text-[10px] uppercase tracking-wide text-gray-400">Cobrado</span>
+                      <span className="tabular-nums text-emerald-700 font-bold">{totales.pagado.toFixed(2)}</span>
+                    </div>
+                  </td>
+                </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ListaFacturas() {
   const [facturas, setFacturas]       = useState([]);
   const [filtros, setFiltros]         = useState(FILTROS_VACIO);
   const [seleccionada, setSeleccionada] = useState(null);
   const [crearOpen, setCrearOpen]     = useState(false);
   const [importarOpen, setImportarOpen] = useState(false);
+  const [sortBy, setSortBy]           = useState("fecha");
 
   const cargar = () =>
-    fetchAuth("/facturas")
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setFacturas(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))));
+    Promise.all([
+      fetchAuth("/facturas").then(r => r.ok ? r.json() : []),
+      fetchAuth("/cotizaciones").then(r => r.ok ? r.json() : []),
+      fetchAuth("/ordenes-trabajo").then(r => r.ok ? r.json() : []),
+    ]).then(([facts, cots, ots]) => {
+      // La Factura no siempre trae su propia cotizacion/OT pobladas (p.ej.
+      // creada por la cadena vía OC) — se resuelven por numeroDocumento
+      // compartido, igual que en DetalleFactura.jsx.
+      const cotPorNumDoc = new Map(cots.filter(c => c.numeroDocumento != null).map(c => [c.numeroDocumento, c.numeroCotizacion]));
+      const otPorNumDoc  = new Map(ots.filter(o => o.numeroDocumento != null).map(o => [o.numeroDocumento, o.numeroOT]));
+      const enriquecidas = facts.map(f => ({
+        ...f,
+        _numeroCotizacion: cotPorNumDoc.get(f.numeroDocumento) || "",
+        _numeroOT: otPorNumDoc.get(f.numeroDocumento) || "",
+      }));
+      setFacturas(enriquecidas);
+    });
 
   useEffect(() => { cargar(); }, []);
 
@@ -74,29 +238,35 @@ export default function ListaFacturas() {
       (!filtros.mes        || fecha.getMonth() + 1 === parseInt(filtros.mes)) &&
       (!filtros.estadoPago || f.estadoPago === filtros.estadoPago) &&
       (!q ||
-        f.empresa?.razonSocial?.toLowerCase().includes(q) ||
-        f.empresa?.ruc?.includes(q) ||
         f.numeroFactura?.toLowerCase().includes(q) ||
         (f.ordenCompra?.numeroOrden || f.numeroOrdenCompra || "").toLowerCase().includes(q) ||
+        f._numeroOT?.toLowerCase().includes(q) ||
+        f._numeroCotizacion?.toLowerCase().includes(q) ||
         f.descripcion?.toLowerCase().includes(q) ||
+        f.empresa?.razonSocial?.toLowerCase().includes(q) ||
+        f.empresa?.ruc?.includes(q) ||
         f.encargado?.toLowerCase().includes(q) ||
         f.planta?.toLowerCase().includes(q))
     );
   });
 
-  const handlePagoChange = (id, valor) =>
-    setFacturas(prev => prev.map(f => f._id === id ? { ...f, montoPagado: valor } : f));
+  filtradas.sort((a, b) => {
+    if (sortBy === "numeroOT") return compararTexto(a._numeroOT, b._numeroOT);
+    if (sortBy === "numeroCotizacion") return compararTexto(a._numeroCotizacion, b._numeroCotizacion);
+    return new Date(b.fechaEmision) - new Date(a.fechaEmision);
+  });
 
-  const handlePagoBlur = (id, valor) => {
+  const handlePagoCheck = (id, pagada) => {
     const factura = facturas.find(f => f._id === id);
     if (!factura) return;
     const totalAPagar = Number(factura.totalAPagar) || 0;
-    const pago = parseFloat(valor) || 0;
-    let estadoPago = "sin pago";
-    if (pago > 0 && pago < totalAPagar) estadoPago = "pago parcial";
-    if (totalAPagar > 0 && pago >= totalAPagar) estadoPago = "pagado";
+    const pago = pagada ? totalAPagar : 0;
+    const estadoPago = pagada ? "pagado" : "sin pago";
+    // Al pagar se cierra toda la cadena (Cotización/OT/Informe/OC/Factura); se
+    // refleja de inmediato en memoria, el backend hace lo mismo en la BD.
+    const estadoCadena = pagada ? "cerrado" : "abierto";
     setFacturas(prev =>
-      prev.map(f => f._id === id ? { ...f, montoPagado: pago, estadoPago } : f)
+      prev.map(f => f._id === id ? { ...f, montoPagado: pago, estadoPago, estadoCadena } : f)
     );
     fetchAuth(`/facturas/${id}/estado-pago`, {
       method: "PATCH",
@@ -105,39 +275,38 @@ export default function ListaFacturas() {
     });
   };
 
-  const exportarExcel = () => {
-    const datos = filtradas.map(f => ({
-      "N° Factura":       f.numeroFactura          || "—",
-      "Fecha emisión":    new Date(f.fechaEmision).toLocaleDateString("es-PE"),
-      "Fecha cancelación":f.fechaCancelacion
-        ? new Date(f.fechaCancelacion).toLocaleDateString("es-PE") : "—",
-      "O.C.":             f.ordenCompra?.numeroOrden || f.numeroOrdenCompra || "—",
-      "Empresa":          f.empresa?.razonSocial      || "—",
-      "RUC":              f.empresa?.ruc               || "—",
-      "Subtotal":         Number(f.subtotal ?? f.monto ?? 0).toFixed(2),
-      "IGV 18%":          Number(f.igv      ?? 0).toFixed(2),
-      "Total":            Number(f.total    ?? 0).toFixed(2),
-      "Descripción":      f.descripcion || "—",
-      "Encargado":        f.encargado   || "—",
-      "Planta":           f.planta      || "—",
-      "Detracción (12%)": Number(f.detraccion  ?? 0).toFixed(2),
-      "Total a pagar":    Number(f.totalAPagar ?? 0).toFixed(2),
-      "Monto pagado":     Number(f.montoPagado ?? 0).toFixed(2),
-      "Estado pago":      f.estadoPago,
-    }));
-    const ws = XLSX.utils.json_to_sheet(datos);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Facturas");
-    XLSX.writeFile(wb, "facturas.xlsx");
-  };
+  const cerradas = filtradas.filter(f => f.estadoCadena === "cerrado");
+  const abiertas = filtradas.filter(f => f.estadoCadena !== "cerrado");
+  const hayFiltro = Object.values(filtros).some(Boolean);
 
-  const totales = {
-    subtotal:    filtradas.reduce((s, f) => s + (Number(f.subtotal ?? f.monto)    || 0), 0),
-    igv:         filtradas.reduce((s, f) => s + (Number(f.igv)                   || 0), 0),
-    total:       filtradas.reduce((s, f) => s + (Number(f.total)                 || 0), 0),
-    detraccion:  filtradas.reduce((s, f) => s + (Number(f.detraccion)            || 0), 0),
-    totalAPagar: filtradas.reduce((s, f) => s + (Number(f.totalAPagar)           || 0), 0),
-    pagado:      filtradas.reduce((s, f) => s + (Number(f.montoPagado)           || 0), 0),
+  // Mismas columnas que TablaFacturas, agregando Monto pagado (hoy solo visible
+  // en el chip de estado de pago).
+  const filaFactura = (f) => ({
+    "N° OT":             f._numeroOT || "—",
+    "N° Factura":        f.numeroFactura || "—",
+    "Fecha emisión":     new Date(f.fechaEmision).toLocaleDateString("es-PE"),
+    "Fecha cancelación": f.fechaCancelacion ? new Date(f.fechaCancelacion).toLocaleDateString("es-PE") : "—",
+    "Orden de Compra":   f.ordenCompra?.numeroOrden || f.numeroOrdenCompra || "—",
+    "Empresa":           f.empresa?.razonSocial || "—",
+    "Subtotal":          Number(f.subtotal ?? f.monto ?? 0).toFixed(2),
+    "IGV 18%":           Number(f.igv ?? 0).toFixed(2),
+    "Total":             Number(f.total ?? 0).toFixed(2),
+    "Detracción 12%":    Number(f.detraccion ?? 0).toFixed(2),
+    "Total a pagar":     Number(f.totalAPagar ?? 0).toFixed(2),
+    "Estado pago":       f.estadoPago,
+    "Monto pagado":      Number(f.montoPagado ?? 0).toFixed(2),
+  });
+
+  const exportarExcel = () => {
+    const wb = XLSX.utils.book_new();
+    [
+      ["Facturas", abiertas],
+      ["Facturas cerradas", cerradas],
+    ].forEach(([nombre, lista]) => {
+      const ws = XLSX.utils.json_to_sheet(lista.map(filaFactura));
+      XLSX.utils.book_append_sheet(wb, ws, nombre);
+    });
+    XLSX.writeFile(wb, "facturas.xlsx");
   };
 
   return (
@@ -189,115 +358,36 @@ export default function ListaFacturas() {
           ))}
         </select>
         <input name="busqueda" value={filtros.busqueda} onChange={handleFiltro}
-          placeholder="Buscar por empresa, RUC, N° factura, OC, descripción…"
+          placeholder="Buscar por N° OT, cotización, OC, factura, título, empresa o RUC…"
           className={`${SELECT} flex-1 min-w-52`} />
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={SELECT}>
+          {SORTS.map(({ valor, label }) => (
+            <option key={valor} value={valor}>Ordenar: {label}</option>
+          ))}
+        </select>
         {Object.values(filtros).some(Boolean) && (
           <button onClick={() => setFiltros(FILTROS_VACIO)}
             className="text-sm text-gray-400 hover:text-gray-700 transition">Limpiar</button>
         )}
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: "1000px" }}>
-            <thead className="bg-gray-50 text-xs uppercase tracking-wide border-b-2 border-gray-200">
-              <tr>
-                <th className={`${TH} text-left`}>N° Factura</th>
-                <th className={`${TH} text-center`}>Fecha emisión</th>
-                <th className={`${TH} text-center`}>Fecha cancelación</th>
-                <th className={`${TH} text-left`}>Orden de Compra</th>
-                <th className={`${TH} text-left`}>Empresa</th>
-                <th className={`${TH} text-right`}>Subtotal</th>
-                <th className={`${TH} text-right`}>IGV 18%</th>
-                <th className={`${TH} text-right`}>Total</th>
-                <th className={`${TH} text-right`}>Detracción 12%</th>
-                <th className={`${TH} text-right`}>Total a pagar</th>
-                <th className={`${TH} text-center`}>Estado pago</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtradas.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-gray-400">
-                    {Object.values(filtros).some(Boolean)
-                      ? "Sin resultados para los filtros aplicados"
-                      : "Sin facturas registradas"}
-                  </td>
-                </tr>
-              ) : (
-                <>
-                {filtradas.map(f => (
-                  <tr key={f._id} className="hover:bg-emerald-50/65 cursor-pointer transition-colors"
-                    onClick={() => setSeleccionada(f)}>
-                    <td className="px-3 py-3.5 font-semibold text-gray-800 whitespace-nowrap">
-                      {f.numeroFactura || <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-3 py-3.5 text-center text-gray-500 whitespace-nowrap">
-                      {new Date(f.fechaEmision).toLocaleDateString("es-PE")}
-                    </td>
-                    <td className="px-3 py-3.5 text-center">
-                      <BadgeCancelacion fecha={f.fechaCancelacion} pagado={f.estadoPago === "pagado"} />
-                    </td>
-                    <td className="px-3 py-3.5 text-gray-600 whitespace-nowrap">
-                      {f.ordenCompra?.numeroOrden || f.numeroOrdenCompra || <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-3 py-3.5 text-gray-700">
-                      {f.empresa?.razonSocial || <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className={`${TD_NUM} text-gray-400`}>
-                      {Number(f.subtotal ?? f.monto ?? 0).toFixed(2)}
-                    </td>
-                    <td className={`${TD_NUM} text-gray-400`}>
-                      {Number(f.igv ?? 0).toFixed(2)}
-                    </td>
-                    <td className={`${TD_NUM} text-gray-600`}>
-                      {Number(f.total ?? 0).toFixed(2)}
-                    </td>
-                    <td className={`${TD_NUM} text-gray-400`}>
-                      {Number(f.detraccion ?? 0).toFixed(2)}
-                    </td>
-                    <td className={`${TD_NUM} font-bold text-gray-900`}>
-                      {Number(f.totalAPagar ?? 0).toFixed(2)}
-                    </td>
-                    <td className="px-3 py-2 text-center" onClick={e => e.stopPropagation()}>
-                      <div className="flex flex-col items-center gap-1.5 min-w-[130px]">
-                        <DotChip chip={badgePago(f.estadoPago)} dot={dotPago(f.estadoPago)}>
-                          {f.estadoPago}
-                        </DotChip>
-                        <BarraPago pagado={f.montoPagado} total={Number(f.totalAPagar) || 0} />
-                        <input type="number" min="0" step="0.01"
-                          value={f.montoPagado ?? 0}
-                          onChange={e => handlePagoChange(f._id, e.target.value)}
-                          onBlur={e => handlePagoBlur(f._id, e.target.value)}
-                          className="w-28 text-right border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300" />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {/* Fila de totales */}
-                <tr className="bg-gray-50 border-t-2 border-gray-200 font-semibold text-sm">
-                  <td colSpan={5} className="px-3 py-3.5 text-right text-xs uppercase tracking-wide text-gray-400">
-                    Totales ({filtradas.length})
-                  </td>
-                  <td className={`${TD_NUM} text-gray-500`}>{totales.subtotal.toFixed(2)}</td>
-                  <td className={`${TD_NUM} text-gray-500`}>{totales.igv.toFixed(2)}</td>
-                  <td className={`${TD_NUM} text-gray-700`}>{totales.total.toFixed(2)}</td>
-                  <td className={`${TD_NUM} text-gray-500`}>{totales.detraccion.toFixed(2)}</td>
-                  <td className={`${TD_NUM} font-bold text-gray-900`}>{totales.totalAPagar.toFixed(2)}</td>
-                  <td className="px-3 py-3.5 text-center">
-                    <div className="flex flex-col items-center">
-                      <span className="text-[10px] uppercase tracking-wide text-gray-400">Cobrado</span>
-                      <span className="tabular-nums text-emerald-700 font-bold">{totales.pagado.toFixed(2)}</span>
-                    </div>
-                  </td>
-                </tr>
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TablaFacturas
+        titulo="Facturas"
+        acento="bg-emerald-500"
+        facturas={abiertas}
+        onSelect={setSeleccionada}
+        handlePagoCheck={handlePagoCheck}
+        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin facturas registradas"}
+      />
+
+      <TablaFacturas
+        titulo="Facturas cerradas"
+        acento="bg-gray-500"
+        facturas={cerradas}
+        onSelect={setSeleccionada}
+        handlePagoCheck={handlePagoCheck}
+        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin facturas cerradas"}
+      />
     </div>
 
     {crearOpen && (
@@ -322,7 +412,7 @@ export default function ListaFacturas() {
       <DetalleDocumento
         tipo="factura"
         data={seleccionada}
-        onClose={() => setSeleccionada(null)}
+        onClose={() => { setSeleccionada(null); cargar(); }}
         onGuardadaFactura={(actualizada) => {
           setFacturas(prev => prev.map(f => f._id === actualizada._id ? actualizada : f));
         }}

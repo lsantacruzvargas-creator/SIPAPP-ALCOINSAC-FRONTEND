@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 
 /* ─── Iconos SVG (stroke, currentColor) ─────────────────────────── */
 const svg = "w-5 h-5";
@@ -76,9 +76,26 @@ export function FlujoNegocio({ pasos }) {
 }
 
 /* ─── Tarjeta de relación ───────────────────────────────────────── */
-export function TarjetaRelacion({ tipo, codigo, children, vacio, onClick, cargando }) {
+export function TarjetaRelacion({ tipo, codigo, children, vacio, actual, onClick, cargando, onCrear, crearLabel }) {
   const t = TEMAS[tipo];
   const Icon = t.icon;
+  if (actual) {
+    return (
+      <div className="relative border border-gray-200 bg-gray-50 rounded-2xl p-5 min-h-[112px] opacity-80">
+        <span className="absolute top-4 right-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Actual</span>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center shrink-0">
+            <Icon />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t.label}</p>
+            <p className="font-mono text-sm font-bold text-gray-500 truncate">{codigo || "—"}</p>
+          </div>
+        </div>
+        <div className="space-y-1">{children}</div>
+      </div>
+    );
+  }
   if (vacio) {
     return (
       <div className="border border-dashed border-gray-200 rounded-2xl p-5 flex items-center gap-3 min-h-[112px] opacity-70">
@@ -87,7 +104,17 @@ export function TarjetaRelacion({ tipo, codigo, children, vacio, onClick, cargan
         </div>
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t.label}</p>
-          <p className="text-xs text-gray-400 mt-0.5">No vinculada</p>
+          {onCrear ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onCrear(); }}
+              className="text-xs text-blue-600 hover:text-blue-800 underline mt-0.5"
+            >
+              + Crear {crearLabel || t.label}
+            </button>
+          ) : (
+            <p className="text-xs text-gray-400 mt-0.5">No vinculada</p>
+          )}
         </div>
       </div>
     );
@@ -175,3 +202,65 @@ export const dotOT = (e) => {
 
 export const money = (v) =>
   "S/ " + Number(v ?? 0).toLocaleString("es-PE", { minimumFractionDigits: 2 });
+
+/* ─── Anulación de documentos ────────────────────────────────────── */
+export function BotonAnular({ onAnular }) {
+  const [abierto, setAbierto]   = useState(false);
+  const [motivo, setMotivo]     = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  if (!abierto) {
+    return (
+      <button onClick={() => setAbierto(true)}
+        className="text-xs text-white/70 hover:text-white underline transition">
+        Anular documento
+      </button>
+    );
+  }
+
+  const confirmar = async () => {
+    if (!motivo.trim()) return;
+    setEnviando(true);
+    await onAnular(motivo.trim());
+    setEnviando(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <h4 className="font-semibold text-gray-800">Anular documento</h4>
+        <p className="text-sm text-gray-500">
+          Esta acción es permanente y no se puede deshacer. Indica el motivo:
+        </p>
+        <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} autoFocus
+          placeholder="Motivo de la anulación…"
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none" />
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => { setAbierto(false); setMotivo(""); }} disabled={enviando}
+            className="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition disabled:opacity-50">
+            Cancelar
+          </button>
+          <button onClick={confirmar} disabled={!motivo.trim() || enviando}
+            className="text-sm bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition font-medium">
+            {enviando ? "Anulando…" : "Confirmar anulación"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function BannerAnulado({ motivo, por, fecha }) {
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+      <span className="text-red-500 text-lg leading-none">⚠</span>
+      <div>
+        <p className="text-sm font-semibold text-red-700">Documento anulado</p>
+        {motivo && <p className="text-xs text-red-600 mt-0.5">{motivo}</p>}
+        <p className="text-xs text-red-400 mt-1">
+          {por && `Por ${por}`}{fecha && ` · ${new Date(fecha).toLocaleString("es-PE")}`}
+        </p>
+      </div>
+    </div>
+  );
+}

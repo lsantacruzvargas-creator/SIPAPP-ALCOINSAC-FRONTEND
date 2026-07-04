@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
-import ModalVerOT from "../components/ModalVerOT";
+import DetalleDocumento from "../components/DetalleDocumento";
+import * as XLSX from "xlsx";
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -9,30 +10,121 @@ const MESES = [
 
 const FILTROS_VACIO = { ano: "", mes: "", prioridad: "", estado: "", empresa: "", planta: "", busqueda: "" };
 
-const badgePrioridad = (p) => {
-  if (p === "alta") return "bg-red-50 text-red-700";
-  if (p === "media") return "bg-amber-50 text-amber-700";
-  return "bg-green-50 text-green-700";
-};
+const SORTS = [
+  { valor: "fecha",             label: "Más reciente" },
+  { valor: "numeroOT",          label: "N° OT" },
+  { valor: "numeroCotizacion",  label: "N° Cotización" },
+];
 
-const badgeEstado = (e) => {
-  if (e === "entregado")   return "bg-teal-50 text-teal-700";
-  if (e === "completado")  return "bg-green-50 text-green-700";
-  if (e === "en progreso") return "bg-blue-50 text-blue-700";
-  return "bg-amber-50 text-amber-700";
+// Comparador descendente: numérico si ambos parsean como número, si no
+// localeCompare; los valores vacíos van al final.
+const compararTexto = (na, nb) => {
+  if (!na && !nb) return 0;
+  if (!na) return 1;
+  if (!nb) return -1;
+  const numA = Number(na), numB = Number(nb);
+  if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+  return String(nb).localeCompare(String(na));
 };
 
 const SELECT =
   "border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400";
 
+const TH = "px-4 py-3 font-semibold text-gray-500 whitespace-nowrap";
+
+function TablaOTs({ titulo, acento, ordenes, onSelect, vacioMsg }) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <span className={`w-1.5 h-5 rounded-full ${acento}`} />
+        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">{titulo}</h3>
+        <span className="text-xs text-gray-400">({ordenes.length})</span>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ minWidth: "1000px" }}>
+            <thead className="bg-gray-50 text-xs uppercase tracking-wide border-b-2 border-gray-200">
+              <tr>
+                <th className={`${TH} text-left`}>N° OT</th>
+                <th className={`${TH} text-left`}>N° Cotización</th>
+                <th className={`${TH} text-center`}>Fecha recibida</th>
+                <th className={`${TH} text-left`}>Empresa</th>
+                <th className={`${TH} text-left`}>Planta</th>
+                <th className={`${TH} text-left`}>Encargado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {ordenes.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td>
+                </tr>
+              ) : (
+                ordenes.map((o) => (
+                  <tr
+                    key={o._id}
+                    className={`hover:bg-indigo-50/65 cursor-pointer transition-colors ${o.anulado ? "opacity-50" : ""}`}
+                    onClick={() => onSelect(o)}
+                  >
+                    <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">
+                      {o.numeroOT || <span className="text-gray-300 font-sans">—</span>}
+                    </td>
+                    <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        {o.cotizacion?.numeroCotizacion || <span className="text-gray-300 font-sans">—</span>}
+                        {o.anulado && (
+                          <span title={o.motivoAnulacion} className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 uppercase">
+                            Anulada
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-center text-gray-500 whitespace-nowrap">
+                      {o.fechaRecibida ? new Date(o.fechaRecibida).toLocaleDateString("es-PE") : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-700">
+                      {o.empresa?.razonSocial || <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-600">{o.planta || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3.5 text-gray-600">{o.encargado || <span className="text-gray-300">—</span>}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ListaOrdenesTrabajo() {
   const [ordenes, setOrdenes] = useState([]);
+  const [facturaPorNumDoc, setFacturaPorNumDoc] = useState(new Map());
+  const [ocPorNumDoc, setOcPorNumDoc] = useState(new Map());
   const [filtros, setFiltros] = useState(FILTROS_VACIO);
+  const [sortBy, setSortBy] = useState("fecha");
   const [seleccionada, setSeleccionada] = useState(null);
 
-  useEffect(() => {
-    fetchAuth("/ordenes-trabajo").then((r) => r.ok && r.json().then(setOrdenes));
-  }, []);
+  const cargar = () =>
+    Promise.all([
+      fetchAuth("/ordenes-trabajo").then((r) => r.ok ? r.json() : []),
+      fetchAuth("/facturas").then((r) => r.ok ? r.json() : []),
+      fetchAuth("/ordenes-compra").then((r) => r.ok ? r.json() : []),
+    ]).then(([ots, facts, ocs]) => {
+      setOrdenes(ots);
+      // Una OT está "facturada" si su cadena (mismo numeroDocumento) tiene una
+      // factura con número de factura.
+      setFacturaPorNumDoc(new Map(
+        facts.filter((f) => f.numeroFactura && f.numeroDocumento != null)
+             .map((f) => [f.numeroDocumento, f.numeroFactura])
+      ));
+      setOcPorNumDoc(new Map(
+        ocs.filter((oc) => oc.numeroDocumento != null)
+           .map((oc) => [oc.numeroDocumento, oc.numeroOrden])
+      ));
+    });
+
+  useEffect(() => { cargar(); }, []);
 
   const anos = [...new Set(ordenes.map((o) => new Date(o.createdAt).getFullYear()))].sort(
     (a, b) => b - a
@@ -65,20 +157,66 @@ export default function ListaOrdenesTrabajo() {
       (!filtros.empresa || o.empresa?._id === filtros.empresa) &&
       (!filtros.planta || o.ingresoEquipo?.planta === filtros.planta) &&
       (!q ||
-        o.codigo?.toLowerCase().includes(q) ||
         o.titulo?.toLowerCase().includes(q) ||
+        o.numeroOT?.toLowerCase().includes(q) ||
+        o.cotizacion?.numeroCotizacion?.toLowerCase().includes(q) ||
+        ocPorNumDoc.get(o.numeroDocumento)?.toLowerCase().includes(q) ||
+        facturaPorNumDoc.get(o.numeroDocumento)?.toLowerCase().includes(q) ||
         o.empresa?.razonSocial?.toLowerCase().includes(q) ||
-        o.empresa?.ruc?.includes(q) ||
-        o.cotizacion?.codigo?.toLowerCase().includes(q))
+        o.empresa?.ruc?.includes(q))
     );
   });
+
+  filtradas.sort((a, b) => {
+    if (sortBy === "numeroOT") return compararTexto(a.numeroOT, b.numeroOT);
+    if (sortBy === "numeroCotizacion") return compararTexto(a.cotizacion?.numeroCotizacion, b.cotizacion?.numeroCotizacion);
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  const esFacturada = (o) => o.numeroDocumento != null && facturaPorNumDoc.has(o.numeroDocumento);
+  const esCerrada = (o) => o.estadoCadena === "cerrado";
+  const cerradas = filtradas.filter((o) => esCerrada(o));
+  const pendientes = filtradas.filter((o) => !esCerrada(o) && !esFacturada(o));
+  const facturadas = filtradas.filter((o) => !esCerrada(o) && esFacturada(o));
+  const hayFiltro = Object.values(filtros).some(Boolean);
+
+  // Mismas columnas que TablaOTs — una hoja por cada tabla visible.
+  const filaOT = (o) => ({
+    "N° OT":          o.numeroOT || "—",
+    "N° Cotización":  o.cotizacion?.numeroCotizacion || "—",
+    "Fecha recibida": o.fechaRecibida ? new Date(o.fechaRecibida).toLocaleDateString("es-PE") : "—",
+    "Empresa":        o.empresa?.razonSocial || "—",
+    "Planta":         o.planta || "—",
+    "Encargado":      o.encargado || "—",
+  });
+
+  const exportarExcel = () => {
+    const wb = XLSX.utils.book_new();
+    [
+      ["Pendientes", pendientes],
+      ["Facturadas", facturadas],
+      ["Cerradas", cerradas],
+    ].forEach(([nombre, lista]) => {
+      const ws = XLSX.utils.json_to_sheet(lista.map(filaOT));
+      XLSX.utils.book_append_sheet(wb, ws, nombre);
+    });
+    XLSX.writeFile(wb, "ordenes-de-trabajo.xlsx");
+  };
 
   return (
     <>
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">Órdenes de Trabajo</h2>
-        <span className="text-sm text-gray-400">{filtradas.length} orden{filtradas.length !== 1 ? "es" : ""}</span>
+        <div>
+          <h2 className="text-xl font-semibold text-gray-800">Órdenes de Trabajo</h2>
+          <span className="text-sm text-gray-400">{filtradas.length} orden{filtradas.length !== 1 ? "es" : ""}</span>
+        </div>
+        <button
+          onClick={exportarExcel}
+          className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition"
+        >
+          Exportar Excel
+        </button>
       </div>
 
       {/* Filtros */}
@@ -137,9 +275,15 @@ export default function ListaOrdenesTrabajo() {
           name="busqueda"
           value={filtros.busqueda}
           onChange={handleFiltro}
-          placeholder="Buscar OT por código, cotización, empresa o título…"
+          placeholder="Buscar por N° OT, cotización, OC, factura, título, empresa o RUC…"
           className={`${SELECT} flex-1 min-w-52`}
         />
+
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={SELECT}>
+          {SORTS.map(({ valor, label }) => (
+            <option key={valor} value={valor}>Ordenar: {label}</option>
+          ))}
+        </select>
 
         {Object.values(filtros).some(Boolean) && (
           <button
@@ -151,93 +295,40 @@ export default function ListaOrdenesTrabajo() {
         )}
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
-          <thead className="bg-gray-500 text-white text-xs uppercase">
-            <tr>
-              <th className="px-4 py-3 text-left">Código OT</th>
-              <th className="px-4 py-3 text-left">Cotización</th>
-              <th className="px-4 py-3 text-left">Empresa</th>
-              <th className="px-4 py-3 text-left">Título</th>
-              <th className="px-4 py-3 text-center">Prioridad</th>
-              <th className="px-4 py-3 text-center">Estado</th>
-              <th className="px-4 py-3 text-left">Personal</th>
-              <th className="px-4 py-3 text-center">F. Entrega</th>
-              <th className="px-4 py-3 text-center">F. Creación</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtradas.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
-                  {Object.values(filtros).some(Boolean)
-                    ? "Sin resultados para los filtros aplicados"
-                    : "Sin órdenes de trabajo registradas"}
-                </td>
-              </tr>
-            ) : (
-              filtradas.map((o) => (
-                <tr
-                  key={o._id}
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => setSeleccionada(o)}
-                >
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{o.codigo}</td>
-                  <td className="px-4 py-3 font-mono text-ms text-black-400">
-                    {o.cotizacion?.codigo || "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    {o.empresa ? (
-                      <span>
-                        <span className="font-medium">{o.empresa.alias}</span>
-                        <span className="text-gray-400"> — {o.empresa.razonSocial}</span>
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">Sin empresa</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 max-w-xs truncate">{o.titulo}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${badgePrioridad(o.prioridad)}`}>
-                      {o.prioridad}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${badgeEstado(o.estado)}`}>
-                      {o.estado}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {o.personalAsignado?.nombre || <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-500">
-                    {o.fechaEntrega
-                      ? new Date(o.fechaEntrega).toLocaleDateString("es-PE")
-                      : <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-400 text-xs">
-                    {new Date(o.createdAt).toLocaleDateString("es-PE")}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
-      </div>
+      <TablaOTs
+        titulo="Órdenes pendientes"
+        acento="bg-amber-500"
+        ordenes={pendientes}
+        onSelect={setSeleccionada}
+        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes pendientes"}
+      />
+
+      <TablaOTs
+        titulo="Órdenes facturadas"
+        acento="bg-emerald-500"
+        ordenes={facturadas}
+        onSelect={setSeleccionada}
+        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes facturadas"}
+      />
+
+      <TablaOTs
+        titulo="Órdenes cerradas"
+        acento="bg-gray-500"
+        ordenes={cerradas}
+        onSelect={setSeleccionada}
+        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes cerradas"}
+      />
     </div>
 
     {seleccionada && (
-      <ModalVerOT
-        orden={seleccionada}
-        onClose={() => setSeleccionada(null)}
-        onActualizada={(actualizada) => {
+      <DetalleDocumento
+        tipo="ot"
+        data={seleccionada}
+        onClose={() => { setSeleccionada(null); cargar(); }}
+        onGuardadaOT={(actualizada) => {
           setOrdenes((prev) =>
             prev.map((o) => (o._id === actualizada._id ? actualizada : o))
           );
-          setSeleccionada(actualizada);
         }}
       />
     )}
