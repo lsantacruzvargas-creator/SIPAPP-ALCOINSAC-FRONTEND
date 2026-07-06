@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchAuth } from "../utils/fetchAuth";
+import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import DetalleDocumento from "../components/DetalleDocumento";
 import ModalCrearFactura  from "../components/ModalCrearFactura";
 import ModalImportarExcel, { COLS_FACTURAS } from "../components/ModalImportarExcel";
@@ -57,6 +57,7 @@ const compararTexto = (na, nb) => {
 };
 
 function TablaFacturas({ titulo, acento, facturas, onSelect, handlePagoCheck, vacioMsg }) {
+  const rolActual = getUsuario()?.rol;
   // Las anuladas siguen visibles en la tabla, pero no cuentan en los totales
   const noAnuladas = facturas.filter(f => !f.anulado);
   const totales = {
@@ -150,15 +151,21 @@ function TablaFacturas({ titulo, acento, facturas, onSelect, handlePagoCheck, va
                         <DotChip chip={badgePago(f.estadoPago)} dot={dotPago(f.estadoPago)}>
                           {f.estadoPago}
                         </DotChip>
-                        <label className={`flex items-center gap-1.5 text-xs text-gray-500 select-none ${f.anulado || !(Number(f.totalAPagar) > 0) ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
-                          title={f.anulado ? "Factura anulada" : !(Number(f.totalAPagar) > 0) ? "Sin monto a pagar" : undefined}>
-                          <input type="checkbox"
-                            checked={f.estadoPago === "pagado"}
-                            disabled={f.anulado || !(Number(f.totalAPagar) > 0)}
-                            onChange={e => handlePagoCheck(f._id, e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
-                          Pagado
-                        </label>
+                        {(() => {
+                          const bloqueada = f.estadoPago === "pagado" && rolActual !== "admin";
+                          const disabled = f.anulado || !(Number(f.totalAPagar) > 0) || bloqueada;
+                          return (
+                            <label className={`flex items-center gap-1.5 text-xs text-gray-500 select-none ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+                              title={f.anulado ? "Factura anulada" : !(Number(f.totalAPagar) > 0) ? "Sin monto a pagar" : bloqueada ? "Solo un administrador puede deshacer un pago" : undefined}>
+                              <input type="checkbox"
+                                checked={f.estadoPago === "pagado"}
+                                disabled={disabled}
+                                onChange={e => handlePagoCheck(f._id, e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
+                              Pagado
+                            </label>
+                          );
+                        })()}
                       </div>
                     </td>
                   </tr>
@@ -261,6 +268,14 @@ export default function ListaFacturas() {
   const handlePagoCheck = async (id, pagada) => {
     const factura = facturas.find(f => f._id === id);
     if (!factura) return;
+
+    if (pagada) {
+      if (!window.confirm("¿Confirmas marcar esta factura como pagada?")) return;
+    } else if (getUsuario()?.rol !== "admin") {
+      alert("Solo un administrador puede deshacer un pago.");
+      return;
+    }
+
     const totalAPagar = Number(factura.totalAPagar) || 0;
     const pago = pagada ? totalAPagar : 0;
     const estadoPago = pagada ? "pagado" : "sin pago";

@@ -23,7 +23,7 @@ export const exportarCotizacionPdf = (cotizacion) => {
     doc.setFont("helvetica", "normal");
     if (empresa.ruc) { doc.text(`RUC: ${empresa.ruc}`, 14, y); y += 5; }
     if (empresa.direccion) { doc.text(empresa.direccion, 14, y); y += 5; }
-    if (empresa.telefono) { doc.text(`Tel: ${empresa.telefono}`, 14, y); y += 5; }
+    if (empresa.contactos?.[0]?.telefono) { doc.text(`Tel: ${empresa.contactos[0].telefono}`, 14, y); y += 5; }
   }
 
   y += 2;

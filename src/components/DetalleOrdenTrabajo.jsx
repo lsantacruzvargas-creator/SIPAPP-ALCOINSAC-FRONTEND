@@ -30,9 +30,11 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
     codigoSap:          inicial.codigoSap          || "",
     empresa:            inicial.empresa?._id       || "",
     planta:             inicial.planta             || "",
+    contactoNombre:     inicial.contactoNombre      || "",
     titulo:             inicial.titulo             || "",
     condicion:          inicial.condicion          || "",
     encargado:          inicial.encargado          || "",
+    encargado2:         inicial.encargado2          || "",
     numeroGuiaEmision:  inicial.numeroGuiaEmision  || "",
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
     fechaSalida: inicial.fechaSalida
@@ -90,13 +92,14 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
     fetchAuth("/empresas").then((res) => res.ok && res.json().then(setEmpresas));
 
   useEffect(() => {
-    fetchAuth("/personal/lista").then(r => r.ok && r.json().then(u => setUsuarios(u || [])));
+    fetchAuth("/personal/lista?todos=true").then(r => r.ok && r.json().then(u => setUsuarios(u || [])));
     cargarEmpresas();
     cargarRelaciones();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ot._id]);
 
-  const plantasEmpresa = empresas.find(e => e._id === form.empresa)?.plantas ?? [];
+  const empresaSel = empresas.find(e => e._id === form.empresa);
+  const plantasEmpresa = empresaSel?.plantas ?? [];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -109,7 +112,10 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
 
   const guardar = async () => {
     setGuardando(true); setError("");
-    const body = { ...form };
+    const body = {
+      ...form,
+      contactoTelefono: empresaSel?.contactos?.find(c => c.nombre === form.contactoNombre)?.telefono || "",
+    };
     if (!body.empresa) delete body.empresa;
     if (!body.fechaRecibida) delete body.fechaRecibida;
     if (!body.fechaSalida) delete body.fechaSalida;
@@ -287,7 +293,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               <input name="titulo" value={form.titulo} onChange={handleChange} placeholder="Descripción del trabajo" className={INP} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Condición</label>
                 <input name="condicion" value={form.condicion} onChange={handleChange} className={INP} />
@@ -297,7 +303,25 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
                 <select name="encargado" value={form.encargado} onChange={handleChange} className={INP}>
                   <option value="">Sin asignar</option>
                   {usuarios.map(u => (
-                    <option key={u._id} value={u.nombre}>{u.nombre}</option>
+                    <option key={u._id} value={u.nombre}>{u.nombre}{!u.activo ? " (inactivo)" : ""}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Encargado 2</label>
+                <select name="encargado2" value={form.encargado2} onChange={handleChange} className={INP}>
+                  <option value="">Sin asignar</option>
+                  {usuarios.map(u => (
+                    <option key={u._id} value={u.nombre}>{u.nombre}{!u.activo ? " (inactivo)" : ""}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Persona de contacto</label>
+                <select name="contactoNombre" value={form.contactoNombre} onChange={handleChange} className={INP}>
+                  <option value="">Sin seleccionar…</option>
+                  {empresaSel?.contactos?.map((c, i) => (
+                    <option key={i} value={c.nombre}>{c.nombre} — {c.telefono || "—"}</option>
                   ))}
                 </select>
               </div>

@@ -79,7 +79,9 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cot._id]);
 
-  const plantasEmpresa = empresas.find(e => e._id === form.empresa)?.plantas ?? [];
+  const empresaSel = empresas.find(e => e._id === form.empresa);
+  const plantasEmpresa = empresaSel?.plantas ?? [];
+  const contactosEmpresa = empresaSel?.contactos ?? [];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -229,6 +231,20 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
                 ))}
               </select>
             </div>
+
+            {contactosEmpresa.length > 0 && (
+              <div className="bg-sky-50/50 border border-sky-100 rounded-xl p-4 space-y-1.5">
+                <p className="text-xs font-semibold text-sky-600 uppercase tracking-wide">Contactos de la empresa</p>
+                {contactosEmpresa.map((c, i) => (
+                  <p key={i} className="text-sm text-gray-700">
+                    <span className="font-medium">{c.nombre}</span>
+                    {(c.telefono || c.correo) && (
+                      <span className="text-gray-500"> — {[c.telefono, c.correo].filter(Boolean).join(" · ")}</span>
+                    )}
+                  </p>
+                ))}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

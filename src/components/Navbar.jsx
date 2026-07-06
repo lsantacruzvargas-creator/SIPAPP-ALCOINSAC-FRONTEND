@@ -1,14 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getUsuario, logout } from "../utils/fetchAuth.js";
 
 const ROL_LABEL = { admin: "Admin", tecnico: "Técnico", almacenero: "Almacenero", asistente: "Asistente" };
+
+const TEMAS = [
+  { id: "claro",  icon: "☀️", title: "Tema claro" },
+  { id: "oscuro", icon: "🌙", title: "Tema oscuro" },
+  { id: "sepia",  icon: "📜", title: "Tema sepia" },
+];
 
 export default function Navbar() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const usuario   = getUsuario();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tema, setTema] = useState(() => localStorage.getItem("tema") || "claro");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", tema);
+    localStorage.setItem("tema", tema);
+  }, [tema]);
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
@@ -81,6 +93,20 @@ export default function Navbar() {
 
         {/* Usuario + salir + hamburguesa */}
         <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            {TEMAS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTema(t.id)}
+                title={t.title}
+                className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
+                  tema === t.id ? "bg-white shadow-sm" : "opacity-50 hover:opacity-80"
+                }`}
+              >
+                {t.icon}
+              </button>
+            ))}
+          </div>
           <div className="hidden sm:flex items-center gap-2.5">
             <div className="text-right">
               <p className="text-sm font-semibold text-gray-700 leading-tight">{usuario?.nombre}</p>
@@ -124,6 +150,20 @@ export default function Navbar() {
               <p className="text-sm font-semibold text-gray-700 leading-tight">{usuario?.nombre}</p>
               <p className="text-xs text-gray-400 leading-tight">{ROL_LABEL[usuario?.rol] ?? usuario?.rol}</p>
             </div>
+          </div>
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 mb-2 w-fit">
+            {TEMAS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTema(t.id)}
+                title={t.title}
+                className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
+                  tema === t.id ? "bg-white shadow-sm" : "opacity-50 hover:opacity-80"
+                }`}
+              >
+                {t.icon}
+              </button>
+            ))}
           </div>
           {esComercial && (
             <button onClick={() => ir("/dashboard")} className={linkMovil("/dashboard")}>Dashboard</button>

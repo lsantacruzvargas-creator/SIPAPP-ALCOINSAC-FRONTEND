@@ -10,9 +10,11 @@ const FORM_VACIO = {
   codigoSap: "",
   empresa: "",
   planta: "",
+  contactoNombre: "",
   titulo: "",
   condicion: "",
   encargado: "",
+  encargado2: "",
   numeroGuiaEmision: "",
   numeroGuiaRemision: "",
   fechaSalida: "",
@@ -36,7 +38,7 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
       r.ok && r.json().then((d) => setForm((f) => ({ ...f, numeroOT: d.siguiente })))
     );
     cargarEmpresas();
-    fetchAuth("/personal/lista").then((r) => r.ok && r.json().then(setPersonal));
+    fetchAuth("/personal/lista?todos=true").then((r) => r.ok && r.json().then(setPersonal));
   }, []);
 
   const empresaSel = empresas.find((e) => e._id === form.empresa);
@@ -55,9 +57,12 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
       codigoSap: form.codigoSap,
       empresa: form.empresa || undefined,
       planta: form.planta,
+      contactoNombre: form.contactoNombre,
+      contactoTelefono: empresaSel?.contactos?.find((c) => c.nombre === form.contactoNombre)?.telefono || "",
       titulo: form.titulo,
       condicion: form.condicion,
       encargado: form.encargado,
+      encargado2: form.encargado2,
       numeroGuiaEmision: form.numeroGuiaEmision,
       numeroGuiaRemision: form.numeroGuiaRemision,
       fechaSalida: form.fechaSalida || null,
@@ -84,7 +89,7 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="font-semibold text-gray-800">Crear Orden de Trabajo</h3>
@@ -109,7 +114,7 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-gray-500 block mb-1">Cliente</label>
               <div className="flex gap-2">
@@ -143,6 +148,15 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
                 <input name="planta" value={form.planta} onChange={handleChange} className={INP} placeholder="Planta" />
               )}
             </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Persona de contacto</label>
+              <select name="contactoNombre" value={form.contactoNombre} onChange={handleChange} className={INP}>
+                <option value="">Sin seleccionar…</option>
+                {empresaSel?.contactos?.map((c, i) => (
+                  <option key={i} value={c.nombre}>{c.nombre} — {c.telefono || "—"}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -150,7 +164,7 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
             <input name="titulo" value={form.titulo} onChange={handleChange} className={INP} placeholder="Descripción del trabajo" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-gray-500 block mb-1">Condición</label>
               <input name="condicion" value={form.condicion} onChange={handleChange} className={INP} />
@@ -160,7 +174,16 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
               <select name="encargado" value={form.encargado} onChange={handleChange} className={INP}>
                 <option value="">Sin asignar</option>
                 {personal.map((p) => (
-                  <option key={p._id} value={p.nombre}>{p.nombre}</option>
+                  <option key={p._id} value={p.nombre}>{p.nombre}{!p.activo ? " (inactivo)" : ""}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Encargado 2</label>
+              <select name="encargado2" value={form.encargado2} onChange={handleChange} className={INP}>
+                <option value="">Sin asignar</option>
+                {personal.map((p) => (
+                  <option key={p._id} value={p.nombre}>{p.nombre}{!p.activo ? " (inactivo)" : ""}</option>
                 ))}
               </select>
             </div>

@@ -10,6 +10,82 @@
   }
 }
 
+/* ─── Temas (Claro/Oscuro/Sepia) ──────────────────────────────────────────
+   Re-tiñen los contenedores/textos neutros más usados en todo el proyecto
+   (fondos blancos/grises, textos grises, bordes) sin tocar cada componente.
+   Los colores de acento (botones de acción, chips de estado, headers
+   degradados) se mantienen iguales en los 3 temas a propósito. */
+:root[data-theme="oscuro"] {
+  --bg-page: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-surface-soft: #172033;
+  --text-strong: #e2e8f0;
+  --text-soft: #cbd5e1;
+  --border-soft: #334155;
+}
+:root[data-theme="sepia"] {
+  --bg-page: #f4ecd8;
+  --bg-surface: #fbf5e6;
+  --bg-surface-soft: #efe4c8;
+  --text-strong: #4a3826;
+  --text-soft: #6b5843;
+  --border-soft: #ddc9a3;
+}
+
+[data-theme="oscuro"], [data-theme="sepia"] {
+  background-color: var(--bg-page);
+}
+[data-theme="oscuro"] body, [data-theme="sepia"] body {
+  background-color: var(--bg-page) !important;
+}
+
+[data-theme="oscuro"] .bg-white,
+[data-theme="sepia"] .bg-white {
+  background-color: var(--bg-surface) !important;
+}
+[data-theme="oscuro"] .bg-gray-50,
+[data-theme="sepia"] .bg-gray-50 {
+  background-color: var(--bg-surface-soft) !important;
+}
+[data-theme="oscuro"] .bg-gray-100,
+[data-theme="sepia"] .bg-gray-100 {
+  background-color: var(--bg-surface-soft) !important;
+}
+[data-theme="oscuro"] .bg-gray-900,
+[data-theme="sepia"] .bg-gray-900 {
+  background-color: var(--text-strong) !important;
+  color: var(--bg-page) !important;
+}
+
+[data-theme="oscuro"] .text-gray-800,
+[data-theme="oscuro"] .text-gray-700,
+[data-theme="oscuro"] .text-gray-600,
+[data-theme="sepia"] .text-gray-800,
+[data-theme="sepia"] .text-gray-700,
+[data-theme="sepia"] .text-gray-600 {
+  color: var(--text-strong) !important;
+}
+[data-theme="oscuro"] .text-gray-500,
+[data-theme="oscuro"] .text-gray-400,
+[data-theme="sepia"] .text-gray-500,
+[data-theme="sepia"] .text-gray-400 {
+  color: var(--text-soft) !important;
+}
+
+[data-theme="oscuro"] .border-gray-100,
+[data-theme="oscuro"] .border-gray-200,
+[data-theme="oscuro"] .border-gray-300,
+[data-theme="sepia"] .border-gray-100,
+[data-theme="sepia"] .border-gray-200,
+[data-theme="sepia"] .border-gray-300 {
+  border-color: var(--border-soft) !important;
+}
+
+[data-theme="oscuro"] .hover\:bg-gray-50:hover,
+[data-theme="sepia"] .hover\:bg-gray-50:hover {
+  background-color: var(--bg-surface-soft) !important;
+}
+
 @layer components {
   .btn-primary {
     @apply bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed;
