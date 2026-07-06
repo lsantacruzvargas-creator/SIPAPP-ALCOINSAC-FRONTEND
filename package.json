@@ -25,7 +25,7 @@
   },
   "name": "sipapp-Alcoinsac",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
