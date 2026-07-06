@@ -32,6 +32,8 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     planta:             inicial.planta           || "",
     numeroGuiaEmision:  inicial.numeroGuiaEmision  || "",
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
+    codigoSap:          inicial.codigoSap          || "",
+    fechaSalida:        inicial.fechaSalida ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
   });
   const [calc, setCalc] = useState(() => calcular(subtotalInicial));
   const [empresas, setEmpresas] = useState([]);
@@ -103,6 +105,8 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
       total:              calc.total,
       numeroGuiaEmision:  form.numeroGuiaEmision,
       numeroGuiaRemision: form.numeroGuiaRemision,
+      codigoSap:          form.codigoSap,
+      fechaSalida:        form.fechaSalida || null,
     };
     if (form.empresa) payload.empresa = form.empresa;
     if (form.fecha) payload.fecha = form.fecha;
@@ -294,6 +298,18 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
                 <label className="text-xs text-gray-500 block mb-1">N° guía de salida</label>
                 <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange}
                   placeholder="—" className={INP} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Código SAP</label>
+                <input name="codigoSap" value={form.codigoSap} onChange={handleChange}
+                  placeholder="—" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Fecha de salida</label>
+                <input type="date" name="fechaSalida" value={form.fechaSalida} onChange={handleChange} className={INP} />
               </div>
             </div>
 

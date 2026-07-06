@@ -70,6 +70,9 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
     planta:             inicial.planta             || "",
     numeroGuiaEmision:  inicial.numeroGuiaEmision  || "",
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
+    codigoSap:          inicial.codigoSap          || "",
+    fechaSalida: inicial.fechaSalida
+      ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
   });
   const [calc, setCalc]           = useState(calcular(subtotalInicial));
   const [ocVinculada, setOC]      = useState(inicial.ordenCompra || null);
@@ -180,6 +183,8 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
       planta:             form.planta,
       numeroGuiaEmision:  form.numeroGuiaEmision,
       numeroGuiaRemision: form.numeroGuiaRemision,
+      codigoSap:          form.codigoSap,
+      fechaSalida:        form.fechaSalida || null,
       montoPagado:        inicial.montoPagado,
       estadoPago:         inicial.estadoPago,
       ordenCompra:        ocVinculada?._id || null,
@@ -371,6 +376,18 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
                 <label className="text-xs text-gray-500 block mb-1">N° guía de salida</label>
                 <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange}
                   placeholder="—" className={INP} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Código SAP</label>
+                <input name="codigoSap" value={form.codigoSap} onChange={handleChange}
+                  placeholder="—" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Fecha de salida</label>
+                <input type="date" name="fechaSalida" value={form.fechaSalida} onChange={handleChange} className={INP} />
               </div>
             </div>
 

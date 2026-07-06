@@ -67,12 +67,14 @@ export default function ModalCrearFactura({ onClose, onCreada, ocInicial }) {
     if (!ocInicial) return base;
     return {
       ...base,
-      numeroOrdenCompra: ocInicial.numeroOrden || "",
-      empresa:           ocInicial.empresa?._id || "",
-      subtotal:          ocInicial.subtotal > 0 ? String(ocInicial.subtotal) : "",
-      descripcion:       ocInicial.descripcion || ocInicial.titulo || "",
-      planta:            ocInicial.planta || "",
-      encargado:         ocInicial.encargado || "",
+      numeroOrdenCompra:  ocInicial.numeroOrden || "",
+      empresa:            ocInicial.empresa?._id || "",
+      subtotal:           ocInicial.subtotal > 0 ? String(ocInicial.subtotal) : "",
+      descripcion:        ocInicial.descripcion || ocInicial.titulo || "",
+      planta:             ocInicial.planta || "",
+      encargado:          ocInicial.encargado || "",
+      numeroGuiaEmision:  ocInicial.numeroGuiaEmision || "",
+      numeroGuiaRemision: ocInicial.numeroGuiaRemision || "",
     };
   });
   const [calc, setCalc]           = useState(() => calcular(ocInicial?.subtotal > 0 ? ocInicial.subtotal : 0));
@@ -107,12 +109,14 @@ export default function ModalCrearFactura({ onClose, onCreada, ocInicial }) {
       if (!prev.subtotal && oc.subtotal > 0) setCalc(calcular(oc.subtotal));
       return {
         ...prev,
-        numeroOrdenCompra: oc.numeroOrden   || prev.numeroOrdenCompra,
-        empresa:           prev.empresa     || oc.empresa?._id || "",
-        subtotal:          nuevoSub,
-        descripcion:       prev.descripcion || oc.descripcion  || oc.titulo || "",
-        planta:            prev.planta      || oc.planta       || "",
-        encargado:         prev.encargado   || oc.encargado    || "",
+        numeroOrdenCompra:  oc.numeroOrden   || prev.numeroOrdenCompra,
+        empresa:            prev.empresa     || oc.empresa?._id || "",
+        subtotal:           nuevoSub,
+        descripcion:        prev.descripcion || oc.descripcion  || oc.titulo || "",
+        planta:             prev.planta      || oc.planta       || "",
+        encargado:          prev.encargado   || oc.encargado    || "",
+        numeroGuiaEmision:  prev.numeroGuiaEmision  || oc.numeroGuiaEmision  || "",
+        numeroGuiaRemision: prev.numeroGuiaRemision || oc.numeroGuiaRemision || "",
       };
     });
   };
@@ -169,6 +173,10 @@ export default function ModalCrearFactura({ onClose, onCreada, ocInicial }) {
     };
     if (form.fechaCancelacion) factPayload.fechaCancelacion = form.fechaCancelacion;
     if (form.empresa)          factPayload.empresa          = form.empresa;
+    if (ocVinculada) {
+      factPayload.codigoSap   = ocVinculada.codigoSap;
+      factPayload.fechaSalida = ocVinculada.fechaSalida;
+    }
 
     const resF = await fetchAuth("/facturas", {
       method: "POST",
@@ -184,7 +192,8 @@ export default function ModalCrearFactura({ onClose, onCreada, ocInicial }) {
 
     setExito(factura.codigo);
     setTimeout(() => onCreada(factura), 1800);
-    setGuardando(false);
+    // No se reactiva `guardando`: el botón queda deshabilitado durante el
+    // mensaje de éxito, evitando una segunda creación por doble click.
   };
 
   return (

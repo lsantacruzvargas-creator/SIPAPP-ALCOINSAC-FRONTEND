@@ -4,6 +4,12 @@ import { fetchAuth } from "../utils/fetchAuth";
 const INP    = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 w-full";
 const INP_RO = "border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 w-full cursor-not-allowed";
 
+function calcular(sub) {
+  const s = Math.round(Number(sub) * 100) / 100 || 0;
+  const igv = Math.round(s * 0.18 * 100) / 100;
+  return { subtotal: s, igv, total: Math.round((s + igv) * 100) / 100 };
+}
+
 export default function ModalOrdenCompra({ cotizacion, onClose, onCreada }) {
   const [monto, setMonto]               = useState(cotizacion.total ?? 0);
   const [numeroOrden, setNumeroOrden] = useState("");
@@ -17,6 +23,7 @@ export default function ModalOrdenCompra({ cotizacion, onClose, onCreada }) {
     if (!monto || Number(monto) <= 0) return setError("El monto es obligatorio.");
     setGuardando(true);
     setError("");
+    const calc = calcular(Number(monto) / 1.18); // Guardamos el subtotal sin IGV
     const res = await fetchAuth("/ordenes-compra", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -24,18 +31,27 @@ export default function ModalOrdenCompra({ cotizacion, onClose, onCreada }) {
         cotizacion:    cotizacion._id,
         empresa:       emp?._id,
         titulo:        cotizacion.titulo,
-        monto:         Number(monto/1.18).toFixed(2), // Guardamos el monto sin IGV
-        numeroOrden: numeroOrden || undefined,
+        numeroOrden:   numeroOrden || undefined,
+        monto:         calc.subtotal,
+        ...calc,
+        planta:             cotizacion.planta,
+        encargado:          cotizacion.encargado,
+        numeroGuiaEmision:  cotizacion.numeroGuiaEmision,
+        numeroGuiaRemision: cotizacion.numeroGuiaRemision,
+        codigoSap:          cotizacion.codigoSap,
+        fechaSalida:        cotizacion.fechaSalida,
       }),
     });
     if (res.ok) {
       const data = await res.json();
       setExito(data.codigo);
       setTimeout(() => onCreada(data), 1800);
+      // No se reactiva `guardando`: el botón queda deshabilitado durante el
+      // mensaje de éxito, evitando una segunda creación por doble click.
     } else {
       setError("Error al crear la orden de compra.");
+      setGuardando(false);
     }
-    setGuardando(false);
   };
 
   return (

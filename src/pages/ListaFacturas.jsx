@@ -150,9 +150,11 @@ function TablaFacturas({ titulo, acento, facturas, onSelect, handlePagoCheck, va
                         <DotChip chip={badgePago(f.estadoPago)} dot={dotPago(f.estadoPago)}>
                           {f.estadoPago}
                         </DotChip>
-                        <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+                        <label className={`flex items-center gap-1.5 text-xs text-gray-500 select-none ${f.anulado || !(Number(f.totalAPagar) > 0) ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+                          title={f.anulado ? "Factura anulada" : !(Number(f.totalAPagar) > 0) ? "Sin monto a pagar" : undefined}>
                           <input type="checkbox"
                             checked={f.estadoPago === "pagado"}
+                            disabled={f.anulado || !(Number(f.totalAPagar) > 0)}
                             onChange={e => handlePagoCheck(f._id, e.target.checked)}
                             className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
                           Pagado
@@ -256,7 +258,7 @@ export default function ListaFacturas() {
     return new Date(b.fechaEmision) - new Date(a.fechaEmision);
   });
 
-  const handlePagoCheck = (id, pagada) => {
+  const handlePagoCheck = async (id, pagada) => {
     const factura = facturas.find(f => f._id === id);
     if (!factura) return;
     const totalAPagar = Number(factura.totalAPagar) || 0;
@@ -265,14 +267,26 @@ export default function ListaFacturas() {
     // Al pagar se cierra toda la cadena (Cotización/OT/Informe/OC/Factura); se
     // refleja de inmediato en memoria, el backend hace lo mismo en la BD.
     const estadoCadena = pagada ? "cerrado" : "abierto";
+    const previo = {
+      montoPagado: factura.montoPagado,
+      estadoPago: factura.estadoPago,
+      estadoCadena: factura.estadoCadena,
+    };
     setFacturas(prev =>
       prev.map(f => f._id === id ? { ...f, montoPagado: pago, estadoPago, estadoCadena } : f)
     );
-    fetchAuth(`/facturas/${id}/estado-pago`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ montoPagado: pago }),
-    });
+    try {
+      const res = await fetchAuth(`/facturas/${id}/estado-pago`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ montoPagado: pago }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      // Revertir el cambio optimista para que la UI no mienta si no se guardó
+      setFacturas(prev => prev.map(f => f._id === id ? { ...f, ...previo } : f));
+      alert("No se pudo guardar el estado de pago. Verifica que el servidor esté disponible e intenta de nuevo.");
+    }
   };
 
   const cerradas = filtradas.filter(f => f.estadoCadena === "cerrado");

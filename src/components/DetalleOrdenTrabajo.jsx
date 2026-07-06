@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { fetchAuth } from "../utils/fetchAuth";
+import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import ModalOrdenCompra from "./ModalOrdenCompra";
+import ModalCrearCotizacion from "./ModalCrearCotizacion";
+import ModalEmpresa from "./ModalEmpresa";
 import {
   FlujoNegocio, TarjetaRelacion, Chip,
   badgePago, badgeOT, money, BotonAnular, BannerAnulado,
@@ -9,15 +11,7 @@ import {
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 w-full transition";
 const RO  = "bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-sm text-gray-600 w-full";
 
-const PRIORIDADES = ["alta", "media", "baja"];
 const ESTADOS = ["pendiente", "en progreso", "completado", "entregado"];
-
-const colorPrioridad = (p, activa) => {
-  if (!activa) return "bg-gray-100 text-gray-500 hover:bg-gray-200";
-  if (p === "alta") return "bg-red-500 text-white";
-  if (p === "media") return "bg-amber-400 text-white";
-  return "bg-green-500 text-white";
-};
 
 const colorEstado = (e, activo) => {
   if (!activo) return "bg-gray-100 text-gray-500 hover:bg-gray-200";
@@ -30,20 +24,27 @@ const colorEstado = (e, activo) => {
 export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardada, onNavegar }) {
   const [ot, setOt] = useState(inicial);
   const [form, setForm] = useState({
-    titulo:             inicial.titulo             || "",
-    descripcion:        inicial.descripcion        || "",
-    prioridad:          inicial.prioridad           || "media",
-    estado:             inicial.estado              || "pendiente",
-    fechaEntrega: inicial.fechaEntrega
-      ? new Date(inicial.fechaEntrega).toISOString().split("T")[0] : "",
+    numeroOT:           inicial.numeroOT           || "",
     fechaRecibida: inicial.fechaRecibida
       ? new Date(inicial.fechaRecibida).toISOString().split("T")[0] : "",
-    personalAsignado:   inicial.personalAsignado?._id || "",
-    numeroOT:           inicial.numeroOT           || "",
+    codigoSap:          inicial.codigoSap          || "",
+    empresa:            inicial.empresa?._id       || "",
+    planta:             inicial.planta             || "",
+    titulo:             inicial.titulo             || "",
+    condicion:          inicial.condicion          || "",
+    encargado:          inicial.encargado          || "",
     numeroGuiaEmision:  inicial.numeroGuiaEmision  || "",
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
+    fechaSalida: inicial.fechaSalida
+      ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
+    protocolo:          inicial.protocolo          || "",
+    observaciones:      inicial.observaciones      || "",
+    estado:             inicial.estado             || "pendiente",
   });
+  const rolActual = getUsuario()?.rol;
   const [usuarios, setUsuarios]   = useState([]);
+  const [empresas, setEmpresas]   = useState([]);
+  const [nuevaEmpresaOpen, setNuevaEmpresaOpen] = useState(false);
   const [cot, setCot]             = useState(ot.cotizacion || null);
   const [oc, setOc]               = useState(null);
   const [factura, setFactura]     = useState(null);
@@ -51,6 +52,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
   const [guardando, setGuardando] = useState(false);
   const [error, setError]         = useState("");
   const [crearOCOpen, setCrearOCOpen] = useState(false);
+  const [crearCotOpen, setCrearCotOpen] = useState(false);
 
   const cargarRelaciones = () => {
     Promise.all([
@@ -83,20 +85,33 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
       .then(infs => setInformes(infs || []));
   };
 
+  const cargarEmpresas = () =>
+    fetchAuth("/empresas").then((res) => res.ok && res.json().then(setEmpresas));
+
   useEffect(() => {
     fetchAuth("/personal/lista").then(r => r.ok && r.json().then(u => setUsuarios(u || [])));
+    cargarEmpresas();
     cargarRelaciones();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ot._id]);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const plantasEmpresa = empresas.find(e => e._id === form.empresa)?.plantas ?? [];
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: value,
+      ...(name === "empresa" ? { planta: "" } : {}),
+    }));
+  };
 
   const guardar = async () => {
     setGuardando(true); setError("");
     const body = { ...form };
-    if (!body.personalAsignado) delete body.personalAsignado;
-    if (!body.fechaEntrega) delete body.fechaEntrega;
+    if (!body.empresa) delete body.empresa;
     if (!body.fechaRecibida) delete body.fechaRecibida;
+    if (!body.fechaSalida) delete body.fechaSalida;
 
     const res = await fetchAuth(`/ordenes-trabajo/${ot._id}`, {
       method: "PUT",
@@ -218,55 +233,99 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               </div>
             )}
 
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Título</label>
-              <input name="titulo" value={form.titulo} onChange={handleChange} className={INP} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">N° OT</label>
                 <input name="numeroOT" value={form.numeroOT} onChange={handleChange} placeholder="—" className={INP} />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
+                <label className="text-xs text-gray-500 block mb-1">Fecha de ingreso</label>
                 <input type="date" name="fechaRecibida" value={form.fechaRecibida} onChange={handleChange} className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Código SAP</label>
+                <input name="codigoSap" value={form.codigoSap} onChange={handleChange} placeholder="—" className={INP} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">N° guía de llegada</label>
-                <input name="numeroGuiaEmision" value={form.numeroGuiaEmision} onChange={handleChange} placeholder="—" className={INP} />
+                <label className="text-xs text-gray-500 block mb-1">Cliente</label>
+                <div className="flex gap-2">
+                  <select name="empresa" value={form.empresa} onChange={handleChange} className={INP}>
+                    <option value="">Seleccionar empresa…</option>
+                    {empresas.map(e => (
+                      <option key={e._id} value={e._id}>
+                        {e.alias ? `${e.alias} — ` : ""}{e.razonSocial}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => setNuevaEmpresaOpen(true)}
+                    className="shrink-0 text-xs border border-gray-300 px-3 rounded-lg hover:bg-gray-50 transition">
+                    + Nueva
+                  </button>
+                </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">N° guía de salida</label>
-                <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange} placeholder="—" className={INP} />
+                <label className="text-xs text-gray-500 block mb-1">Planta</label>
+                {plantasEmpresa.length > 0 ? (
+                  <select name="planta" value={form.planta} onChange={handleChange} className={INP}>
+                    <option value="">Seleccionar planta…</option>
+                    {plantasEmpresa.map((p, i) => (
+                      <option key={i} value={p.nombre}>{p.nombre}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input name="planta" value={form.planta} onChange={handleChange} placeholder="Planta" className={INP} />
+                )}
               </div>
             </div>
 
             <div>
               <label className="text-xs text-gray-500 block mb-1">Descripción</label>
-              <textarea name="descripcion" value={form.descripcion} onChange={handleChange}
-                rows={3} className={`${INP} resize-none`} />
+              <input name="titulo" value={form.titulo} onChange={handleChange} placeholder="Descripción del trabajo" className={INP} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-gray-500 block mb-2">Prioridad</label>
-                <div className="flex gap-1.5">
-                  {PRIORIDADES.map(p => (
-                    <button key={p} type="button" onClick={() => setForm({ ...form, prioridad: p })}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-medium capitalize transition ${colorPrioridad(p, form.prioridad === p)}`}>
-                      {p}
-                    </button>
-                  ))}
-                </div>
+                <label className="text-xs text-gray-500 block mb-1">Condición</label>
+                <input name="condicion" value={form.condicion} onChange={handleChange} className={INP} />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Fecha de entrega</label>
-                <input type="date" name="fechaEntrega" value={form.fechaEntrega} onChange={handleChange} className={INP} />
+                <label className="text-xs text-gray-500 block mb-1">Encargado</label>
+                <select name="encargado" value={form.encargado} onChange={handleChange} className={INP}>
+                  <option value="">Sin asignar</option>
+                  {usuarios.map(u => (
+                    <option key={u._id} value={u.nombre}>{u.nombre}</option>
+                  ))}
+                </select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Guía de llegada</label>
+                <input name="numeroGuiaEmision" value={form.numeroGuiaEmision} onChange={handleChange} placeholder="—" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Guía de salida</label>
+                <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange} placeholder="—" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Fecha de salida</label>
+                <input type="date" name="fechaSalida" value={form.fechaSalida} onChange={handleChange} className={INP} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Protocolo</label>
+              <input name="protocolo" value={form.protocolo} onChange={handleChange} className={INP} />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Observaciones</label>
+              <textarea name="observaciones" value={form.observaciones} onChange={handleChange}
+                rows={3} className={`${INP} resize-none`} />
             </div>
 
             <div>
@@ -281,16 +340,6 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               </div>
             </div>
 
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Personal asignado</label>
-              <select name="personalAsignado" value={form.personalAsignado} onChange={handleChange} className={INP}>
-                <option value="">Sin asignar</option>
-                {usuarios.map(u => (
-                  <option key={u._id} value={u._id}>{u.nombre}</option>
-                ))}
-              </select>
-            </div>
-
             {error && <p className="text-xs text-red-500">{error}</p>}
           </fieldset>
 
@@ -301,11 +350,14 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Relaciones</h2>
             </div>
 
-            <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} numero={cot?.numeroCotizacion} vacio={!cot}
-              onClick={cot ? () => onNavegar?.({ tipo: "cotizacion", data: cot }) : undefined}>
-              <p className="text-sm text-gray-700 line-clamp-2">{cot?.titulo}</p>
-              {cot?.total > 0 && <p className="text-xs text-gray-500">{money(cot.total)}</p>}
-            </TarjetaRelacion>
+            {rolActual !== "tecnico" && (
+              <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} numero={cot?.numeroCotizacion} vacio={!cot}
+                onClick={cot ? () => onNavegar?.({ tipo: "cotizacion", data: cot }) : undefined}
+                onCrear={!cot && !ot.anulado ? () => setCrearCotOpen(true) : undefined} crearLabel="Cotización">
+                <p className="text-sm text-gray-700 line-clamp-2">{cot?.titulo}</p>
+                {cot?.total > 0 && <p className="text-xs text-gray-500">{money(cot.total)}</p>}
+              </TarjetaRelacion>
+            )}
 
             <TarjetaRelacion tipo="ot" codigo={ot.codigo} numero={ot.numeroOT} actual>
               {ot.estado && <Chip className={badgeOT(ot.estado)}>{ot.estado}</Chip>}
@@ -322,19 +374,23 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               )}
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="oc" codigo={oc?.codigo} numero={oc?.numeroOrden} vacio={!oc}
-              onClick={oc ? () => onNavegar?.({ tipo: "oc", data: oc, extra: factura }) : undefined}
-              onCrear={!oc && cot && !ot.anulado ? () => setCrearOCOpen(true) : undefined} crearLabel="OC">
-              {oc?.monto > 0 && <p className="text-xs text-gray-500">{money(oc.monto)}</p>}
-            </TarjetaRelacion>
+            {rolActual !== "tecnico" && (
+              <>
+                <TarjetaRelacion tipo="oc" codigo={oc?.codigo} numero={oc?.numeroOrden} vacio={!oc}
+                  onClick={oc ? () => onNavegar?.({ tipo: "oc", data: oc, extra: factura }) : undefined}
+                  onCrear={!oc && cot && !ot.anulado ? () => setCrearOCOpen(true) : undefined} crearLabel="OC">
+                  {oc?.monto > 0 && <p className="text-xs text-gray-500">{money(oc.monto)}</p>}
+                </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="factura" codigo={factura?.codigo} numero={factura?.numeroFactura} vacio={!factura}
-              onClick={factura ? () => onNavegar?.({ tipo: "factura", data: factura }) : undefined}>
-              {(factura?.totalAPagar || factura?.total) > 0 && (
-                <p className="text-xs text-gray-500">{money(factura.totalAPagar ?? factura.total)}</p>
-              )}
-              {factura?.estadoPago && <Chip className={badgePago(factura.estadoPago)}>{factura.estadoPago}</Chip>}
-            </TarjetaRelacion>
+                <TarjetaRelacion tipo="factura" codigo={factura?.codigo} numero={factura?.numeroFactura} vacio={!factura}
+                  onClick={factura ? () => onNavegar?.({ tipo: "factura", data: factura }) : undefined}>
+                  {(factura?.totalAPagar || factura?.total) > 0 && (
+                    <p className="text-xs text-gray-500">{money(factura.totalAPagar ?? factura.total)}</p>
+                  )}
+                  {factura?.estadoPago && <Chip className={badgePago(factura.estadoPago)}>{factura.estadoPago}</Chip>}
+                </TarjetaRelacion>
+              </>
+            )}
           </section>
         </div>
       </div>
@@ -344,6 +400,25 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
           cotizacion={cot}
           onClose={() => setCrearOCOpen(false)}
           onCreada={() => { setCrearOCOpen(false); cargarRelaciones(); }}
+        />
+      )}
+
+      {crearCotOpen && (
+        <ModalCrearCotizacion
+          orden={ot}
+          onClose={() => setCrearCotOpen(false)}
+          onCreada={() => { setCrearCotOpen(false); cargarRelaciones(); }}
+        />
+      )}
+
+      {nuevaEmpresaOpen && (
+        <ModalEmpresa
+          onClose={() => setNuevaEmpresaOpen(false)}
+          onGuardada={async (nueva) => {
+            await cargarEmpresas();
+            setForm(f => ({ ...f, empresa: nueva._id }));
+            setNuevaEmpresaOpen(false);
+          }}
         />
       )}
     </div>

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { fetchAuth } from "../utils/fetchAuth";
 import DetalleDocumento from "../components/DetalleDocumento";
 import ModalImportarExcel, { COLS_COT_OT } from "../components/ModalImportarExcel";
+import ModalNuevaOT from "../components/ModalNuevaOT";
 import * as XLSX from "xlsx";
 
 const MESES = [
@@ -66,7 +67,7 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
               cotizaciones.map((c) => (
                 <tr
                   key={c._id}
-                  className={`hover:bg-sky-50/65 cursor-pointer transition-colors ${c.anulado ? "opacity-50" : ""}`}
+                  className={`hover:bg-sky-50/65 cursor-pointer transition-colors ${c.anulado ? "opacity-50" : ""} ${c._esOT ? "bg-indigo-50/30" : ""}`}
                   onClick={() => onSelect(c)}
                 >
                   <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">
@@ -74,7 +75,13 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
                   </td>
                   <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      {c.numeroCotizacion || <span className="text-gray-300 font-sans">—</span>}
+                      {c._esOT ? (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase tracking-wide">
+                          Sin cotización
+                        </span>
+                      ) : (
+                        c.numeroCotizacion || <span className="text-gray-300 font-sans">—</span>
+                      )}
                       {c.anulado && (
                         <span title={c.motivoAnulacion} className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 uppercase">
                           Anulada
@@ -106,7 +113,6 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
 }
 
 export default function ListaCotizaciones() {
-  const navigate = useNavigate();
   const location = useLocation();
   const [cotizaciones, setCotizaciones] = useState([]);
   const [filtros, setFiltros] = useState({
@@ -115,16 +121,19 @@ export default function ListaCotizaciones() {
   });
   const [seleccionada, setSeleccionada] = useState(null);
   const [importarOpen, setImportarOpen] = useState(false);
+  const [nuevaOTOpen, setNuevaOTOpen] = useState(false);
   const [otsPorCot, setOtsPorCot] = useState(new Map());
+  const [otsSinCotizacion, setOtsSinCotizacion] = useState([]);
   const [ocPorCot, setOcPorCot] = useState(new Map());
+  const [ocPorNumDoc, setOcPorNumDoc] = useState(new Map());
   const [facturaPorNumDoc, setFacturaPorNumDoc] = useState(new Map());
   const [sortBy, setSortBy] = useState("numeroOT");
 
   const buildOtsMap = (ots) => {
     const m = new Map();
     ots.forEach((o) => {
-      if (!o.cotizacion?._id) return;
-      const id = o.cotizacion._id;
+      // Las OT sin cotización se indexan por su propio _id (son su propia fila).
+      const id = o.cotizacion?._id || o._id;
       if (!m.has(id)) m.set(id, []);
       m.get(id).push(o);
     });
@@ -140,6 +149,14 @@ export default function ListaCotizaciones() {
     return m;
   };
 
+  const buildOcPorNumDoc = (ocs) => {
+    const m = new Map();
+    ocs.forEach((oc) => {
+      if (oc.numeroDocumento != null) m.set(oc.numeroDocumento, oc);
+    });
+    return m;
+  };
+
   const cargar = () =>
     Promise.all([
       fetchAuth("/cotizaciones").then((r) => r.ok ? r.json() : []),
@@ -148,8 +165,10 @@ export default function ListaCotizaciones() {
       fetchAuth("/facturas").then((r) => r.ok ? r.json() : []),
     ]).then(([cots, ots, ocs, facts]) => {
       setCotizaciones(cots);
+      setOtsSinCotizacion(ots.filter((o) => !o.cotizacion));
       setOtsPorCot(buildOtsMap(ots));
       setOcPorCot(buildOcMap(ocs));
+      setOcPorNumDoc(buildOcPorNumDoc(ocs));
       // Una cotización está "facturada" si su cadena (mismo numeroDocumento)
       // tiene una factura con número de factura.
       setFacturaPorNumDoc(new Map(
@@ -160,13 +179,37 @@ export default function ListaCotizaciones() {
 
   useEffect(() => { cargar(); }, []);
 
-  const anos = [...new Set(cotizaciones.map((c) => new Date(c.fecha).getFullYear()))].sort(
+  // Las OT creadas sin cotización (flujo directo) se muestran como filas propias,
+  // marcadas con `_esOT`, para que también aparezcan en esta vista.
+  const pseudoDeOT = (ot) => ({
+    _id: ot._id,
+    _esOT: true,
+    _ot: ot,
+    numeroCotizacion: "",
+    fecha: ot.fechaRecibida || ot.createdAt,
+    fechaRecibida: ot.fechaRecibida,
+    empresa: ot.empresa,
+    planta: ot.planta,
+    encargado: ot.encargado,
+    titulo: ot.titulo,
+    subtotal: ot.subtotal,
+    total: ot.total,
+    numeroDocumento: ot.numeroDocumento,
+    estadoCadena: ot.estadoCadena,
+    anulado: ot.anulado,
+    motivoAnulacion: ot.motivoAnulacion,
+    createdAt: ot.createdAt,
+  });
+
+  const filas = [...cotizaciones, ...otsSinCotizacion.map(pseudoDeOT)];
+
+  const anos = [...new Set(filas.map((c) => new Date(c.fecha).getFullYear()))].sort(
     (a, b) => b - a
   );
 
   const empresasLista = [
     ...new Map(
-      cotizaciones.filter((c) => c.empresa?._id).map((c) => [c.empresa._id, c.empresa])
+      filas.filter((c) => c.empresa?._id).map((c) => [c.empresa._id, c.empresa])
     ).values(),
   ].sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
 
@@ -178,7 +221,10 @@ export default function ListaCotizaciones() {
 
   const handleFiltro = (e) => setFiltros({ ...filtros, [e.target.name]: e.target.value });
 
-  const filtradas = cotizaciones.filter((c) => {
+  const tieneOC = (c) =>
+    ocPorCot.has(c._id) || (c.numeroDocumento != null && ocPorNumDoc.has(c.numeroDocumento));
+
+  const filtradas = filas.filter((c) => {
     const fecha = new Date(c.fecha);
     const q = filtros.busqueda.toLowerCase();
     return (
@@ -187,12 +233,12 @@ export default function ListaCotizaciones() {
       (!filtros.ano || fecha.getFullYear() === parseInt(filtros.ano)) &&
       (!filtros.mes || fecha.getMonth() + 1 === parseInt(filtros.mes)) &&
       (!filtros.tipo || c.tipo === filtros.tipo) &&
-      (!filtros.oc  || (filtros.oc === "con" ? ocPorCot.has(c._id) : !ocPorCot.has(c._id))) &&
+      (!filtros.oc  || (filtros.oc === "con" ? tieneOC(c) : !tieneOC(c))) &&
       (!q ||
         c.titulo?.toLowerCase().includes(q) ||
         c.numeroCotizacion?.toLowerCase().includes(q) ||
         numerosOT(otsPorCot.get(c._id))?.toLowerCase().includes(q) ||
-        ocPorCot.get(c._id)?.numeroOrden?.toLowerCase().includes(q) ||
+        (ocPorCot.get(c._id)?.numeroOrden || ocPorNumDoc.get(c.numeroDocumento)?.numeroOrden)?.toLowerCase().includes(q) ||
         facturaPorNumDoc.get(c.numeroDocumento)?.toLowerCase().includes(q) ||
         c.empresa?.razonSocial?.toLowerCase().includes(q) ||
         c.empresa?.ruc?.includes(q))
@@ -219,7 +265,7 @@ export default function ListaCotizaciones() {
   // Misma columnas que TablaCotizaciones — una hoja por cada tabla visible.
   const filaCotizacion = (c) => ({
     "N° OT":           numerosOT(otsPorCot.get(c._id)) || "—",
-    "N° Cotización":   c.numeroCotizacion || "—",
+    "N° Cotización":   c._esOT ? "Sin cotización" : (c.numeroCotizacion || "—"),
     "Fecha recibida":  c.fechaRecibida ? new Date(c.fechaRecibida).toLocaleDateString("es-PE") : "—",
     "Empresa":         c.empresa?.razonSocial || "—",
     "Planta":          c.planta || "—",
@@ -240,6 +286,9 @@ export default function ListaCotizaciones() {
     });
     XLSX.writeFile(wb, "cotizaciones.xlsx");
   };
+
+  const seleccionarFila = (c) =>
+    setSeleccionada(c._esOT ? { tipo: "ot", data: c._ot } : { tipo: "cotizacion", data: c });
 
   const SELECT =
     "border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400";
@@ -263,10 +312,10 @@ export default function ListaCotizaciones() {
             Importar Cotización + OT
           </button>
           <button
-            onClick={() => navigate("/cotizaciones/nueva")}
+            onClick={() => setNuevaOTOpen(true)}
             className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition"
           >
-            + Nueva cotización
+            + Crear Orden de Trabajo
           </button>
         </div>
       </div>
@@ -348,7 +397,7 @@ export default function ListaCotizaciones() {
         acento="bg-amber-500"
         cotizaciones={pendientes}
         otsPorCot={otsPorCot}
-        onSelect={setSeleccionada}
+        onSelect={seleccionarFila}
         vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones pendientes"}
       />
 
@@ -357,7 +406,7 @@ export default function ListaCotizaciones() {
         acento="bg-emerald-500"
         cotizaciones={facturadas}
         otsPorCot={otsPorCot}
-        onSelect={setSeleccionada}
+        onSelect={seleccionarFila}
         vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones facturadas"}
       />
 
@@ -366,7 +415,7 @@ export default function ListaCotizaciones() {
         acento="bg-gray-500"
         cotizaciones={cerradas}
         otsPorCot={otsPorCot}
-        onSelect={setSeleccionada}
+        onSelect={seleccionarFila}
         vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones cerradas"}
       />
     </div>
@@ -382,14 +431,23 @@ export default function ListaCotizaciones() {
       />
     )}
 
+    {nuevaOTOpen && (
+      <ModalNuevaOT onClose={() => setNuevaOTOpen(false)} />
+    )}
+
     {seleccionada && (
       <DetalleDocumento
-        tipo="cotizacion"
-        data={seleccionada}
+        tipo={seleccionada.tipo}
+        data={seleccionada.data}
         onClose={() => { setSeleccionada(null); cargar(); }}
         onGuardadaCotizacion={(actualizada) => {
           setCotizaciones((prev) =>
             prev.map((c) => (c._id === actualizada._id ? actualizada : c))
+          );
+        }}
+        onGuardadaOT={(actualizada) => {
+          setOtsSinCotizacion((prev) =>
+            prev.map((o) => (o._id === actualizada._id ? actualizada : o))
           );
         }}
       />

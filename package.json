@@ -25,7 +25,7 @@
   },
   "name": "sipapp-Alcoinsac",
   "private": true,
-  "version": "1.5.0",
+  "version": "1.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -34,9 +34,10 @@
     "preview": "vite preview",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && npx electron-builder",
-    "release:patch": "npm version patch --no-git-tag-version && npm run build && npx electron-builder --publish always",
-    "release:minor": "npm version minor --no-git-tag-version && npm run build && npx electron-builder --publish always",
-    "release:major": "npm version major --no-git-tag-version && npm run build && npx electron-builder --publish always"
+    "release:patch": "npm version patch --no-git-tag-version && npm run build && npx electron-builder --publish always && npm run release:push",
+    "release:minor": "npm version minor --no-git-tag-version && npm run build && npx electron-builder --publish always && npm run release:push",
+    "release:major": "npm version major --no-git-tag-version && npm run build && npx electron-builder --publish always && npm run release:push",
+    "release:push": "git add -A && git commit -m v%npm_package_version% && git push"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
