@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { fetchAuth } from "../utils/fetchAuth";
 import ModalEmpresa from "./ModalEmpresa";
 
@@ -21,8 +20,7 @@ const FORM_VACIO = {
   observaciones: "",
 };
 
-export default function ModalNuevaOT({ onClose }) {
-  const navigate = useNavigate();
+export default function ModalNuevaOT({ onClose, onCreada }) {
   const [form, setForm] = useState(FORM_VACIO);
   const [empresas, setEmpresas] = useState([]);
   const [personal, setPersonal] = useState([]);
@@ -75,12 +73,13 @@ export default function ModalNuevaOT({ onClose }) {
     });
 
     if (res.ok) {
-      navigate("/ordenes-trabajo");
+      const nueva = await res.json();
+      onCreada?.(nueva);
     } else {
       const data = await res.json().catch(() => ({}));
       setError(data.mensaje || "Error al crear la Orden de Trabajo");
+      setGuardando(false);
     }
-    setGuardando(false);
   };
 
   return (

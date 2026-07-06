@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getUsuario, logout } from "../utils/fetchAuth.js";
 
-const ROL_LABEL = { admin: "Admin", vendedor: "Vendedor", tecnico: "Técnico", almacenero: "Almacenero" };
+const ROL_LABEL = { admin: "Admin", tecnico: "Técnico", almacenero: "Almacenero", asistente: "Asistente" };
 
 export default function Navbar() {
   const navigate  = useNavigate();
@@ -31,7 +31,8 @@ export default function Navbar() {
   const esTecnico    = usuario?.rol === "tecnico";
   const esAlmacenero = usuario?.rol === "almacenero";
   const esAdmin      = usuario?.rol === "admin";
-  const esComercial  = ["admin", "vendedor"].includes(usuario?.rol);
+  const esAsistente  = usuario?.rol === "asistente";
+  const esComercial  = ["admin", "asistente"].includes(usuario?.rol);
 
   const ir = (path) => { navigate(path); setMenuOpen(false); };
   const inicial = usuario?.nombre?.charAt(0)?.toUpperCase() || "?";
@@ -69,7 +70,7 @@ export default function Navbar() {
               <button onClick={() => ir("/facturas")} className={linkCls("/facturas")}>Facturas</button>
               <button onClick={() => ir("/empresas")} className={linkCls("/empresas")}>Empresas</button>
             </>)}
-            {(esAdmin || esAlmacenero) && (
+            {(esAdmin || esAlmacenero || esAsistente) && (
               <button onClick={() => ir("/almacen")} className={linkCls("/almacen")}>Almacén</button>
             )}
             {esAdmin && (
@@ -137,7 +138,7 @@ export default function Navbar() {
             <button onClick={() => ir("/facturas")} className={linkMovil("/facturas")}>Facturas</button>
             <button onClick={() => ir("/empresas")} className={linkMovil("/empresas")}>Empresas</button>
           </>)}
-          {(esAdmin || esAlmacenero) && (
+          {(esAdmin || esAlmacenero || esAsistente) && (
             <button onClick={() => ir("/almacen")} className={linkMovil("/almacen")}>Almacén</button>
           )}
           {esAdmin && (

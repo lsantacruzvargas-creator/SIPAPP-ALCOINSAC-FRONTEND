@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
 import DetalleDocumento from "../components/DetalleDocumento";
+import ModalNuevaOT from "../components/ModalNuevaOT";
 import * as XLSX from "xlsx";
 
 const MESES = [
@@ -104,6 +105,7 @@ export default function ListaOrdenesTrabajo() {
   const [filtros, setFiltros] = useState(FILTROS_VACIO);
   const [sortBy, setSortBy] = useState("fecha");
   const [seleccionada, setSeleccionada] = useState(null);
+  const [crearOTOpen, setCrearOTOpen] = useState(false);
 
   const cargar = () =>
     Promise.all([
@@ -211,12 +213,20 @@ export default function ListaOrdenesTrabajo() {
           <h2 className="text-xl font-semibold text-gray-800">Órdenes de Trabajo</h2>
           <span className="text-sm text-gray-400">{filtradas.length} orden{filtradas.length !== 1 ? "es" : ""}</span>
         </div>
-        <button
-          onClick={exportarExcel}
-          className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition"
-        >
-          Exportar Excel
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exportarExcel}
+            className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition"
+          >
+            Exportar Excel
+          </button>
+          <button
+            onClick={() => setCrearOTOpen(true)}
+            className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition"
+          >
+            + Crear Orden de Trabajo
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -330,6 +340,13 @@ export default function ListaOrdenesTrabajo() {
             prev.map((o) => (o._id === actualizada._id ? actualizada : o))
           );
         }}
+      />
+    )}
+
+    {crearOTOpen && (
+      <ModalNuevaOT
+        onClose={() => setCrearOTOpen(false)}
+        onCreada={() => { setCrearOTOpen(false); cargar(); }}
       />
     )}
     </>

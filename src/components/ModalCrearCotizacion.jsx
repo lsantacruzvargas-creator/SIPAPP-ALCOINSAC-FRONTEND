@@ -46,8 +46,8 @@ export default function ModalCrearCotizacion({ orden, onClose, onCreada }) {
 
     if (res.ok) {
       const nueva = await res.json();
-      await fetchAuth(`/ordenes-trabajo/${orden._id}`, {
-        method: "PUT",
+      await fetchAuth(`/ordenes-trabajo/${orden._id}/vincular-cotizacion`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cotizacion: nueva._id }),
       });

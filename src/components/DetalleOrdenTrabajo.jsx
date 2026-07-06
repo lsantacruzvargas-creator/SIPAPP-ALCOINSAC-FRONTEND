@@ -42,6 +42,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
     estado:             inicial.estado             || "pendiente",
   });
   const rolActual = getUsuario()?.rol;
+  const puedeEditar = rolActual === "admin";
   const [usuarios, setUsuarios]   = useState([]);
   const [empresas, setEmpresas]   = useState([]);
   const [nuevaEmpresaOpen, setNuevaEmpresaOpen] = useState(false);
@@ -181,8 +182,8 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               <p className="text-[10px] text-white/60 uppercase tracking-widest leading-none">Estado</p>
               <Chip className="mt-0.5 bg-white/20 text-white">{ot.estado}</Chip>
             </div>
-            {!ot.anulado && <BotonAnular onAnular={anular} />}
-            {!ot.anulado && (
+            {!ot.anulado && puedeEditar && <BotonAnular onAnular={anular} />}
+            {!ot.anulado && puedeEditar && (
               <button onClick={guardar} disabled={guardando}
                 className="bg-white text-indigo-700 text-sm px-5 py-2 rounded-lg hover:bg-indigo-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
                 {guardando ? "Guardando…" : "Guardar cambios"}
@@ -204,7 +205,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
         <div className="max-w-6xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Datos editables */}
-          <fieldset disabled={ot.anulado} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
+          <fieldset disabled={ot.anulado || !puedeEditar} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-5 rounded-full bg-indigo-500" />
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la orden de trabajo</h2>

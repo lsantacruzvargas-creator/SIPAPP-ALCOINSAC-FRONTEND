@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchAuth } from "../utils/fetchAuth";
+import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import {
   FlujoNegocio, TarjetaRelacion, Chip,
   badgeOT, badgePago, money, BotonAnular, BannerAnulado,
@@ -84,6 +84,7 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
   const [guardando, setGuardando] = useState(false);
   const [error, setError]         = useState("");
   const [cargandoOC, setCargandoOC] = useState(false);
+  const puedeEditar = getUsuario()?.rol === "admin";
 
   const abrirOC = async () => {
     if (!ocVinculada || cargandoOC) return;
@@ -255,8 +256,8 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
                   <Chip className="mt-0.5 bg-white/20 text-white">{inicial.estadoPago}</Chip>
                 )}
               </div>
-              {!inicial.anulado && <BotonAnular onAnular={anular} />}
-              {!inicial.anulado && (
+              {!inicial.anulado && puedeEditar && <BotonAnular onAnular={anular} />}
+              {!inicial.anulado && puedeEditar && (
                 <button onClick={guardar} disabled={guardando}
                   className="bg-white text-emerald-700 text-sm px-5 py-2 rounded-lg hover:bg-emerald-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
                   {guardando ? "Guardando…" : "Guardar cambios"}
@@ -278,7 +279,7 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
         <div className="max-w-6xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Datos editables */}
-          <fieldset disabled={inicial.anulado} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
+          <fieldset disabled={inicial.anulado || !puedeEditar} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-5 rounded-full bg-emerald-500" />
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la factura</h2>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchAuth } from "../utils/fetchAuth";
+import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import { exportarCotizacionPdf } from "../utils/cotizacionPdf";
 import ModalCrearOT from "./ModalCrearOT";
 import ModalOrdenCompra from "./ModalOrdenCompra";
@@ -45,6 +45,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   const [error, setError]         = useState("");
   const [crearOTOpen, setCrearOTOpen] = useState(false);
   const [crearOCOpen, setCrearOCOpen] = useState(false);
+  const puedeEditar = getUsuario()?.rol === "admin";
 
   const cargarRelaciones = () => {
     Promise.all([
@@ -184,8 +185,8 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               className="bg-white/15 text-white text-sm px-4 py-2 rounded-lg hover:bg-white/25 transition font-medium shrink-0">
               Exportar PDF
             </button>
-            {!cot.anulado && <BotonAnular onAnular={anular} />}
-            {!cot.anulado && (
+            {!cot.anulado && puedeEditar && <BotonAnular onAnular={anular} />}
+            {!cot.anulado && puedeEditar && (
               <button onClick={guardar} disabled={guardando}
                 className="bg-white text-sky-700 text-sm px-5 py-2 rounded-lg hover:bg-sky-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
                 {guardando ? "Guardando…" : "Guardar cambios"}
@@ -207,7 +208,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
         <div className="max-w-6xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Datos editables */}
-          <fieldset disabled={cot.anulado} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
+          <fieldset disabled={cot.anulado || !puedeEditar} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-5 rounded-full bg-sky-500" />
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la cotización</h2>

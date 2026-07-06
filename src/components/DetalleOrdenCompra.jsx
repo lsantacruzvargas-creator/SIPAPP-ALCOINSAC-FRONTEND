@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchAuth } from "../utils/fetchAuth";
+import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import ModalCrearFactura from "./ModalCrearFactura";
 import {
   FlujoNegocio, TarjetaRelacion, Chip,
@@ -42,6 +42,7 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
   const [error, setError]         = useState("");
   const [cargandoFactura, setCargandoFactura] = useState(false);
   const [crearFacturaOpen, setCrearFacturaOpen] = useState(false);
+  const puedeEditar = getUsuario()?.rol === "admin";
 
   const abrirFactura = async () => {
     if (!facturaVinculada || cargandoFactura) return;
@@ -167,8 +168,8 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
                   <Chip className="mt-0.5 bg-white/20 text-white">{factura.estadoPago}</Chip>
                 )}
               </div>
-              {!orden.anulado && <BotonAnular onAnular={anular} />}
-              {!orden.anulado && (
+              {!orden.anulado && puedeEditar && <BotonAnular onAnular={anular} />}
+              {!orden.anulado && puedeEditar && (
                 <button onClick={guardar} disabled={guardando}
                   className="bg-white text-blue-700 text-sm px-5 py-2 rounded-lg hover:bg-blue-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
                   {guardando ? "Guardando…" : "Guardar cambios"}
@@ -190,7 +191,7 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
         <div className="max-w-6xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Datos editables */}
-          <fieldset disabled={orden.anulado} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
+          <fieldset disabled={orden.anulado || !puedeEditar} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-5 rounded-full bg-blue-500" />
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la orden</h2>

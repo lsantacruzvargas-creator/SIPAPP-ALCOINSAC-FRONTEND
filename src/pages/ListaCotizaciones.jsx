@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { fetchAuth } from "../utils/fetchAuth";
 import DetalleDocumento from "../components/DetalleDocumento";
 import ModalImportarExcel, { COLS_COT_OT } from "../components/ModalImportarExcel";
@@ -114,6 +114,7 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
 
 export default function ListaCotizaciones() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [cotizaciones, setCotizaciones] = useState([]);
   const [filtros, setFiltros] = useState({
     ...FILTROS_VACIO,
@@ -432,7 +433,10 @@ export default function ListaCotizaciones() {
     )}
 
     {nuevaOTOpen && (
-      <ModalNuevaOT onClose={() => setNuevaOTOpen(false)} />
+      <ModalNuevaOT
+        onClose={() => setNuevaOTOpen(false)}
+        onCreada={() => navigate("/ordenes-trabajo")}
+      />
     )}
 
     {seleccionada && (
