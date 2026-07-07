@@ -351,10 +351,6 @@ export default function ListaFacturas() {
             className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
             Exportar Excel
           </button>
-          <button onClick={() => setImportarOpen(true)}
-            className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
-            Importar Excel
-          </button>
           <button onClick={() => setCrearOpen(true)}
             className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800 transition font-medium">
             + Nueva Factura

@@ -37,6 +37,40 @@
 }
 [data-theme="oscuro"] body, [data-theme="sepia"] body {
   background-color: var(--bg-page) !important;
+  color: var(--text-strong) !important;
+}
+
+/* Los inputs/selects/textareas no llevan clases de color explícitas en la
+   mayoría de formularios (heredan del navegador, no del body) — sin esto
+   quedan con fondo blanco y texto oscuro por defecto, o directamente
+   invisibles si el contenedor detrás ya se re-tiñó oscuro. */
+[data-theme="oscuro"] input,
+[data-theme="oscuro"] select,
+[data-theme="oscuro"] textarea,
+[data-theme="sepia"] input,
+[data-theme="sepia"] select,
+[data-theme="sepia"] textarea {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-strong) !important;
+  border-color: var(--border-soft) !important;
+}
+[data-theme="oscuro"] input::placeholder,
+[data-theme="oscuro"] select::placeholder,
+[data-theme="oscuro"] textarea::placeholder,
+[data-theme="sepia"] input::placeholder,
+[data-theme="sepia"] select::placeholder,
+[data-theme="sepia"] textarea::placeholder {
+  color: var(--text-soft) !important;
+  opacity: 1;
+}
+[data-theme="oscuro"] input:disabled,
+[data-theme="oscuro"] select:disabled,
+[data-theme="oscuro"] textarea:disabled,
+[data-theme="sepia"] input:disabled,
+[data-theme="sepia"] select:disabled,
+[data-theme="sepia"] textarea:disabled {
+  background-color: var(--bg-surface-soft) !important;
+  color: var(--text-soft) !important;
 }
 
 [data-theme="oscuro"] .bg-white,
@@ -57,9 +91,11 @@
   color: var(--bg-page) !important;
 }
 
+[data-theme="oscuro"] .text-gray-900,
 [data-theme="oscuro"] .text-gray-800,
 [data-theme="oscuro"] .text-gray-700,
 [data-theme="oscuro"] .text-gray-600,
+[data-theme="sepia"] .text-gray-900,
 [data-theme="sepia"] .text-gray-800,
 [data-theme="sepia"] .text-gray-700,
 [data-theme="sepia"] .text-gray-600 {

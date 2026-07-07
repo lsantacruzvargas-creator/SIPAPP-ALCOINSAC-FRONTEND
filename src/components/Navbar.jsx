@@ -71,9 +71,6 @@ export default function Navbar() {
               <button onClick={() => ir("/dashboard")} className={linkCls("/dashboard")}>Dashboard</button>
             )}
             {(esComercial || esTecnico) && (
-              <button onClick={() => ir("/ingresos-equipo")} className={linkCls("/ingresos-equipo")}>Ingresos</button>
-            )}
-            {(esComercial || esTecnico) && (
               <button onClick={() => ir("/ordenes-trabajo")} className={linkCls("/ordenes-trabajo")}>OTs</button>
             )}
             {esComercial && (<>
@@ -168,10 +165,9 @@ export default function Navbar() {
           {esComercial && (
             <button onClick={() => ir("/dashboard")} className={linkMovil("/dashboard")}>Dashboard</button>
           )}
-          {(esComercial || esTecnico) && (<>
-            <button onClick={() => ir("/ingresos-equipo")} className={linkMovil("/ingresos-equipo")}>Ingreso de Equipos</button>
+          {(esComercial || esTecnico) && (
             <button onClick={() => ir("/ordenes-trabajo")} className={linkMovil("/ordenes-trabajo")}>Órdenes de Trabajo</button>
-          </>)}
+          )}
           {esComercial && (<>
             <button onClick={() => ir("/cotizaciones")} className={linkMovil("/cotizaciones")}>Presupuesto</button>
             <button onClick={() => ir("/ordenes-compra")} className={linkMovil("/ordenes-compra")}>Órdenes de Compra</button>

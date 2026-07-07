@@ -307,12 +307,6 @@ export default function ListaCotizaciones() {
             Exportar Excel
           </button>
           <button
-            onClick={() => setImportarOpen(true)}
-            className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition"
-          >
-            Importar Cotización + OT
-          </button>
-          <button
             onClick={() => setNuevaOTOpen(true)}
             className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition"
           >
