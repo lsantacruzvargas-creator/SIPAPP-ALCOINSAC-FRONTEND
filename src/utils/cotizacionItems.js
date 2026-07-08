@@ -37,4 +37,15 @@ export const itemDesdeDb = (item) => ({
     : "",
   precio: item.precio,
   moneda: item.moneda || "PEN",
+  otGenerada: item.otGenerada || null,
 });
+
+// Validación de ítems requeridos por el modelo (Backend/src/models/Cotizacion.js:
+// descripcion, cantidad y precio son obligatorios) — se resalta en el form
+// antes de enviar, en vez de dejar que el guardado falle en el servidor.
+export const descripcionInvalida = (item) => !item.descripcion?.trim();
+export const cantidadInvalida = (item) => !(Number(item.cantidad) > 0);
+export const precioInvalido = (item) =>
+  item.precio === "" || item.precio == null || isNaN(Number(item.precio)) || Number(item.precio) < 0;
+export const itemInvalido = (item) =>
+  descripcionInvalida(item) || cantidadInvalida(item) || precioInvalido(item);

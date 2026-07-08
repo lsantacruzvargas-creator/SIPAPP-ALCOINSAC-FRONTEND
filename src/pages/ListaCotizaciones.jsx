@@ -4,6 +4,7 @@ import { fetchAuth } from "../utils/fetchAuth";
 import DetalleDocumento from "../components/DetalleDocumento";
 import ModalImportarExcel, { COLS_COT_OT } from "../components/ModalImportarExcel";
 import ModalNuevaOT from "../components/ModalNuevaOT";
+import ModalNuevaCotizacion from "../components/ModalNuevaCotizacion";
 import * as XLSX from "xlsx";
 
 const MESES = [
@@ -11,7 +12,15 @@ const MESES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-const FILTROS_VACIO = { empresa: "", planta: "", ano: "", mes: "", tipo: "", oc: "", busqueda: "" };
+const FILTROS_VACIO = { empresa: "", planta: "", ano: "", mes: "", oc: "", busqueda: "" };
+
+const VISTAS = [
+  { valor: "todas",      label: "Todas las tablas" },
+  { valor: "sinOT",      label: "Cotizaciones sin OT" },
+  { valor: "pendientes", label: "Cotizaciones pendientes de OC" },
+  { valor: "conOC",      label: "Cotización con OC" },
+  { valor: "cerradas",   label: "Cotizaciones cerradas" },
+];
 
 const TH = "px-4 py-3 font-semibold text-gray-500 whitespace-nowrap";
 
@@ -55,7 +64,7 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
               <th className={`${TH} text-left`}>Planta</th>
               <th className={`${TH} text-left`}>Encargado</th>
               <th className={`${TH} text-left`}>Descripción</th>
-              <th className={`${TH} text-right`}>Total sin IGV</th>
+              <th className={`${TH} text-right`}>Total sin IGV (S/)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -99,7 +108,7 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
                   <td className="px-4 py-3.5 text-gray-600">{c.encargado || <span className="text-gray-300">—</span>}</td>
                   <td className="px-4 py-3.5 text-gray-700">{c.titulo}</td>
                   <td className="px-4 py-3.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
-                    {Number(c.subtotal || Number(c.total) / 1.18).toFixed(2)}
+                    {Number(c.subtotal || Number(c.total) / 1.18).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
               ))
@@ -123,12 +132,14 @@ export default function ListaCotizaciones() {
   const [seleccionada, setSeleccionada] = useState(null);
   const [importarOpen, setImportarOpen] = useState(false);
   const [nuevaOTOpen, setNuevaOTOpen] = useState(false);
+  const [nuevaCotizacionOpen, setNuevaCotizacionOpen] = useState(false);
   const [otsPorCot, setOtsPorCot] = useState(new Map());
   const [otsSinCotizacion, setOtsSinCotizacion] = useState([]);
   const [ocPorCot, setOcPorCot] = useState(new Map());
   const [ocPorNumDoc, setOcPorNumDoc] = useState(new Map());
   const [facturaPorNumDoc, setFacturaPorNumDoc] = useState(new Map());
   const [sortBy, setSortBy] = useState("numeroOT");
+  const [vista, setVista] = useState("pendientes");
 
   const buildOtsMap = (ots) => {
     const m = new Map();
@@ -233,7 +244,6 @@ export default function ListaCotizaciones() {
       (!filtros.planta  || otsPorCot.get(c._id)?.some((o) => o.ingresoEquipo?.planta === filtros.planta)) &&
       (!filtros.ano || fecha.getFullYear() === parseInt(filtros.ano)) &&
       (!filtros.mes || fecha.getMonth() + 1 === parseInt(filtros.mes)) &&
-      (!filtros.tipo || c.tipo === filtros.tipo) &&
       (!filtros.oc  || (filtros.oc === "con" ? tieneOC(c) : !tieneOC(c))) &&
       (!q ||
         c.titulo?.toLowerCase().includes(q) ||
@@ -256,11 +266,12 @@ export default function ListaCotizaciones() {
     return compararTexto(primerNumeroOT(a), primerNumeroOT(b));
   });
 
-  const esFacturada = (c) => c.numeroDocumento != null && facturaPorNumDoc.has(c.numeroDocumento);
   const esCerrada = (c) => c.estadoCadena === "cerrado";
   const cerradas = filtradas.filter((c) => esCerrada(c));
-  const pendientes = filtradas.filter((c) => !esCerrada(c) && !esFacturada(c));
-  const facturadas = filtradas.filter((c) => !esCerrada(c) && esFacturada(c));
+  const pendientes = filtradas.filter((c) => !esCerrada(c) && !tieneOC(c));
+  const conOC = filtradas.filter((c) => !esCerrada(c) && tieneOC(c));
+  // Cotizaciones (no pseudo-filas de OT) sin ninguna OT relacionada.
+  const sinOT = filtradas.filter((c) => !c._esOT && !otsPorCot.get(c._id)?.length);
   const hayFiltro = Object.values(filtros).some(Boolean);
 
   // Misma columnas que TablaCotizaciones — una hoja por cada tabla visible.
@@ -279,8 +290,9 @@ export default function ListaCotizaciones() {
     const wb = XLSX.utils.book_new();
     [
       ["Pendientes", pendientes],
-      ["Facturadas", facturadas],
+      ["Con OC", conOC],
       ["Cerradas", cerradas],
+      ["Sin OT", sinOT],
     ].forEach(([nombre, lista]) => {
       const ws = XLSX.utils.json_to_sheet(lista.map(filaCotizacion));
       XLSX.utils.book_append_sheet(wb, ws, nombre);
@@ -311,6 +323,12 @@ export default function ListaCotizaciones() {
             className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition"
           >
             + Crear Orden de Trabajo
+          </button>
+          <button
+            onClick={() => setNuevaCotizacionOpen(true)}
+            className="bg-sky-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-sky-700 transition"
+          >
+            + Nueva Cotización
           </button>
         </div>
       </div>
@@ -349,19 +367,11 @@ export default function ListaCotizaciones() {
           ))}
         </select>
 
-        <select name="tipo" value={filtros.tipo} onChange={handleFiltro} className={SELECT}>
-          <option value="">Venta y Servicio</option>
-          <option value="venta">Venta</option>
-          <option value="servicio">Servicio</option>
+        <select value={vista} onChange={(e) => setVista(e.target.value)} className={SELECT}>
+          {VISTAS.map(({ valor, label }) => (
+            <option key={valor} value={valor}>{label}</option>
+          ))}
         </select>
-
-        <select name="oc" value={filtros.oc} onChange={handleFiltro} className={SELECT}>
-          <option value="">Con y sin OC</option>
-          <option value="con">Con OC</option>
-          <option value="sin">Sin OC</option>
-        </select>
-
-
 
         <input
           name="busqueda"
@@ -377,42 +387,57 @@ export default function ListaCotizaciones() {
           ))}
         </select>
 
-        {Object.values(filtros).some(Boolean) && (
-          <button
-            onClick={() => setFiltros(FILTROS_VACIO)}
-            className="text-sm text-gray-400 hover:text-gray-700 transition"
-          >
-            Limpiar
-          </button>
-        )}
+        <button
+          onClick={() => { setFiltros(FILTROS_VACIO); setVista("todas"); }}
+          className="text-sm text-gray-400 hover:text-gray-700 transition"
+        >
+          Limpiar
+        </button>
       </div>
 
-      <TablaCotizaciones
-        titulo="Cotizaciones pendientes de OC"
-        acento="bg-amber-500"
-        cotizaciones={pendientes}
-        otsPorCot={otsPorCot}
-        onSelect={seleccionarFila}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones pendientes"}
-      />
+      {(vista === "todas" || vista === "sinOT") && (
+        <TablaCotizaciones
+          titulo="Cotizaciones sin OT"
+          acento="bg-indigo-500"
+          cotizaciones={sinOT}
+          otsPorCot={otsPorCot}
+          onSelect={seleccionarFila}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Todas las cotizaciones ya tienen OT"}
+        />
+      )}
 
-      <TablaCotizaciones
-        titulo="Cotizaciones facturadas"
-        acento="bg-emerald-500"
-        cotizaciones={facturadas}
-        otsPorCot={otsPorCot}
-        onSelect={seleccionarFila}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones facturadas"}
-      />
+      {(vista === "todas" || vista === "pendientes") && (
+        <TablaCotizaciones
+          titulo="Cotizaciones pendientes de OC"
+          acento="bg-amber-500"
+          cotizaciones={pendientes}
+          otsPorCot={otsPorCot}
+          onSelect={seleccionarFila}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones pendientes"}
+        />
+      )}
 
-      <TablaCotizaciones
-        titulo="Cotizaciones cerradas"
-        acento="bg-gray-500"
-        cotizaciones={cerradas}
-        otsPorCot={otsPorCot}
-        onSelect={seleccionarFila}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones cerradas"}
-      />
+      {(vista === "todas" || vista === "conOC") && (
+        <TablaCotizaciones
+          titulo="Cotización con OC"
+          acento="bg-emerald-500"
+          cotizaciones={conOC}
+          otsPorCot={otsPorCot}
+          onSelect={seleccionarFila}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones con OC"}
+        />
+      )}
+
+      {(vista === "todas" || vista === "cerradas") && (
+        <TablaCotizaciones
+          titulo="Cotizaciones cerradas"
+          acento="bg-gray-500"
+          cotizaciones={cerradas}
+          otsPorCot={otsPorCot}
+          onSelect={seleccionarFila}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones cerradas"}
+        />
+      )}
     </div>
 
     {importarOpen && (
@@ -430,6 +455,13 @@ export default function ListaCotizaciones() {
       <ModalNuevaOT
         onClose={() => setNuevaOTOpen(false)}
         onCreada={() => navigate("/ordenes-trabajo")}
+      />
+    )}
+
+    {nuevaCotizacionOpen && (
+      <ModalNuevaCotizacion
+        onClose={() => setNuevaCotizacionOpen(false)}
+        onCreada={() => { setNuevaCotizacionOpen(false); cargar(); }}
       />
     )}
 

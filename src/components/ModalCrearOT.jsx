@@ -43,6 +43,9 @@ export default function ModalCrearOT({ cotizacion, onClose, onCreada }) {
     };
     if (!body.empresa) delete body.empresa;
     if (!body.personalAsignado) delete body.personalAsignado;
+    // "Fecha recibida" (cotización) y "Fecha de ingreso" (OT) son el mismo
+    // dato — se replica al crear la OT desde una cotización ya existente.
+    if (cotizacion.fechaRecibida) body.fechaRecibida = cotizacion.fechaRecibida;
 
     const res = await fetchAuth("/ordenes-trabajo", {
       method: "POST",

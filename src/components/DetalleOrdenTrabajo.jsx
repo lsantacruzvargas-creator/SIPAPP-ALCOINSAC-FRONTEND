@@ -175,11 +175,11 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
             <div>
               <p className="text-lg font-bold text-white uppercase tracking-widest leading-none">Orden de Trabajo</p>
               <h1 className="text-lg font-bold font-mono leading-tight">
-                {ot.codigo}
-                {ot.numeroDocumento != null && (
-                  <span className="ml-2 text-xs font-normal text-white/60">Doc. N° {ot.numeroDocumento}</span>
-                )}
+                {form.numeroOT || ot.codigo}
               </h1>
+              <p className="text-xs font-normal text-white/60 leading-tight">
+                {ot.codigo}{ot.numeroDocumento != null && ` · Doc. N° ${ot.numeroDocumento}`}
+              </p>
               {ot.empresa && <p className="text-xs text-white/80 leading-tight">{ot.empresa.razonSocial}</p>}
             </div>
           </div>
@@ -432,7 +432,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
         <ModalCrearCotizacion
           orden={ot}
           onClose={() => setCrearCotOpen(false)}
-          onCreada={() => { setCrearCotOpen(false); cargarRelaciones(); }}
+          onCreada={(nueva) => { setCrearCotOpen(false); onNavegar?.({ tipo: "cotizacion", data: nueva }); }}
         />
       )}
 

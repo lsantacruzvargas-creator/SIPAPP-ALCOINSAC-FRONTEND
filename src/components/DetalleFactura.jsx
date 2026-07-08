@@ -12,7 +12,9 @@ function calcular(sub) {
   const s = Math.round(Number(sub) * 100) / 100 || 0;
   const igv = Math.round(s * 0.18 * 100) / 100;
   const total = Math.round((s + igv) * 100) / 100;
-  const detraccion = Math.round(total * 0.12 * 100) / 100;
+  // R.S. 178-2005/SUNAT: aplica solo si el total (con IGV) es >= S/ 701, y el
+  // depósito se hace en números enteros (sin decimales).
+  const detraccion = total >= 701 ? Math.round(total * 0.12) : 0;
   return { igv, total, detraccion, totalAPagar: Math.round((total - detraccion) * 100) / 100 };
 }
 
@@ -240,11 +242,11 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
               <div>
                 <p className="text-lg font-bold text-white uppercase tracking-widest leading-none">Factura</p>
                 <h1 className="text-lg font-bold font-mono leading-tight">
-                  {inicial.codigo}
-                  {inicial.numeroDocumento != null && (
-                    <span className="ml-2 text-xs font-normal text-white/60">Doc. N° {inicial.numeroDocumento}</span>
-                  )}
+                  {form.numeroFactura || inicial.codigo}
                 </h1>
+                <p className="text-xs font-normal text-white/60 leading-tight">
+                  {inicial.codigo}{inicial.numeroDocumento != null && ` · Doc. N° ${inicial.numeroDocumento}`}
+                </p>
                 {inicial.empresa && <p className="text-xs text-white/80 leading-tight">{inicial.empresa.razonSocial}</p>}
               </div>
             </div>

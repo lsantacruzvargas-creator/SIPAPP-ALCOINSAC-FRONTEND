@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import { exportarCotizacionPdf } from "../utils/cotizacionPdf";
+import { calcSubtotal, itemDesdeDb, itemInvalido } from "../utils/cotizacionItems";
 import ModalCrearOT from "./ModalCrearOT";
 import ModalOrdenCompra from "./ModalOrdenCompra";
+import BuscadorOrdenTrabajo from "./BuscadorOrdenTrabajo";
+import TablaItemsCotizacion from "./TablaItemsCotizacion";
 import {
   FlujoNegocio, TarjetaRelacion, Chip,
   badgePago, badgeOT, money, BotonAnular, BannerAnulado,
@@ -24,10 +27,14 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     empresa:            inicial.empresa?._id     || "",
     tipo:               inicial.tipo             || "venta",
     condicionPago:      inicial.condicionPago    || "",
+    plazoEntrega:       inicial.plazoEntrega     || "",
+    lugarEntrega:       inicial.lugarEntrega     || "",
+    validezOferta:      inicial.validezOferta    || "",
     fecha:              inicial.fecha ? new Date(inicial.fecha).toISOString().split("T")[0] : "",
     fechaRecibida:      inicial.fechaRecibida ? new Date(inicial.fechaRecibida).toISOString().split("T")[0] : "",
     titulo:             inicial.titulo           || "",
     numeroCotizacion:   inicial.numeroCotizacion || "",
+    atencion:           inicial.atencion         || "",
     encargado:          inicial.encargado        || "",
     planta:             inicial.planta           || "",
     numeroGuiaEmision:  inicial.numeroGuiaEmision  || "",
@@ -36,8 +43,10 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     fechaSalida:        inicial.fechaSalida ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
   });
   const [calc, setCalc] = useState(() => calcular(subtotalInicial));
+  const [items, setItems] = useState(() => (inicial.items || []).map(itemDesdeDb));
+  const [intentoGuardar, setIntentoGuardar] = useState(false);
   const [empresas, setEmpresas] = useState([]);
-  const [ot, setOt]             = useState(null);
+  const [ots, setOts]           = useState([]);
   const [informes, setInformes] = useState([]);
   const [oc, setOc]             = useState(null);
   const [factura, setFactura]   = useState(null);
@@ -45,6 +54,9 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   const [error, setError]         = useState("");
   const [crearOTOpen, setCrearOTOpen] = useState(false);
   const [crearOCOpen, setCrearOCOpen] = useState(false);
+  const [buscadorOTOpen, setBuscadorOTOpen] = useState(false);
+  const [seleccionados, setSeleccionados] = useState(() => new Set());
+  const [generandoOT, setGenerandoOT] = useState(false);
   const puedeEditar = getUsuario()?.rol === "admin";
 
   const cargarRelaciones = () => {
@@ -52,9 +64,9 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
       fetchAuth("/ordenes-trabajo").then(r => r.ok ? r.json() : []),
       fetchAuth("/ordenes-compra").then(r => r.ok ? r.json() : []),
       fetchAuth("/facturas").then(r => r.ok ? r.json() : []),
-    ]).then(([ots, ocs, facts]) => {
-      const otFound = ots.find(o => (o.cotizacion?._id || o.cotizacion) === cot._id) || null;
-      setOt(otFound);
+    ]).then(([otsData, ocs, facts]) => {
+      const otsFound = otsData.filter(o => (o.cotizacion?._id || o.cotizacion) === cot._id);
+      setOts(otsFound);
       const ocFound = ocs.find(o => (o.cotizacion?._id || o.cotizacion) === cot._id) || null;
       setOc(ocFound);
       // La factura de la cadena comparte numeroDocumento; si no, se resuelve por la OC.
@@ -63,10 +75,10 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
         (ocFound && facts.find(f => (f.ordenCompra?._id || f.ordenCompra) === ocFound._id)) ||
         null;
       setFactura(factFound);
-      if (otFound) {
-        fetchAuth(`/informes?ordenTrabajo=${otFound._id}`)
-          .then(r => r.ok && r.json())
-          .then(infs => setInformes(infs || []));
+      if (otsFound.length > 0) {
+        Promise.all(
+          otsFound.map(o => fetchAuth(`/informes?ordenTrabajo=${o._id}`).then(r => r.ok ? r.json() : []))
+        ).then(listas => setInformes(listas.flat()));
       } else {
         setInformes([]);
       }
@@ -93,23 +105,108 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     }));
   };
 
-  const guardar = async () => {
-    setGuardando(true); setError("");
-    // Los ítems no se editan en esta vista; se envían solo los campos de cabecera.
+  const toggleSeleccion = (idx) => setSeleccionados(prev => {
+    const next = new Set(prev);
+    if (next.has(idx)) next.delete(idx); else next.add(idx);
+    return next;
+  });
+
+  // Genera una OT por cada ítem seleccionado (uno a la vez, en secuencia).
+  // Primero persiste los cambios pendientes: el backend identifica el ítem
+  // por índice dentro de `cotizacion.items`, así que ese orden debe coincidir
+  // exactamente con lo ya guardado antes de generar OT por índice.
+  const generarOTSeleccionados = async () => {
+    setGenerandoOT(true);
+    const guardada = await persistir();
+    if (!guardada) { setGenerandoOT(false); return; }
+    const indices = [...seleccionados].sort((a, b) => a - b);
+    let ultimaCot = guardada;
+    for (const idx of indices) {
+      const res = await fetchAuth(`/cotizaciones/${ultimaCot._id}/items/${idx}/generar-ot`, { method: "PATCH" });
+      if (res.ok) {
+        const data = await res.json();
+        ultimaCot = data.cotizacion;
+      }
+    }
+    setCot(ultimaCot);
+    setItems((ultimaCot.items || []).map(itemDesdeDb));
+    setSeleccionados(new Set());
+    setGenerandoOT(false);
+    cargarRelaciones();
+  };
+
+  const subtotalItems = parseFloat(items.reduce((acc, i) => acc + calcSubtotal(i), 0).toFixed(2));
+  const usarTotalesDeItems = items.length > 0;
+  const totalesMostrados = usarTotalesDeItems ? calcular(subtotalItems) : calc;
+
+  // Arma el objeto para el PDF con lo que hay en pantalla ahora mismo, sin
+  // depender de que se haya guardado antes (Guardar cambios cierra el modal).
+  const datosParaPdf = () => ({
+    ...cot,
+    empresa:            empresaSel || cot.empresa,
+    tipo:               form.tipo,
+    numeroCotizacion:   form.numeroCotizacion,
+    atencion:           form.atencion,
+    fecha:              form.fecha,
+    titulo:             form.titulo,
+    condicionPago:      form.condicionPago,
+    plazoEntrega:       form.plazoEntrega,
+    lugarEntrega:       form.lugarEntrega,
+    validezOferta:      form.validezOferta,
+    subtotal:           totalesMostrados.subtotal,
+    igv:                totalesMostrados.igv,
+    total:              totalesMostrados.total,
+    items: items.map(i => ({
+      descripcion: i.descripcion,
+      cantidad:    i.cantidad,
+      precio:      i.precio,
+      moneda:      i.moneda,
+      subtotal:    calcSubtotal(i),
+      subItems:    (i.subItems || []).map(s => s.texto).filter(Boolean),
+    })),
+  });
+
+  // Persiste el estado actual y devuelve la cotización guardada (o null si
+  // falló) — usado tanto por "Guardar cambios" como por "Generar OT", ya que
+  // esta última necesita que los índices de `items` coincidan exactamente
+  // con lo persistido en el backend antes de generar OT por índice.
+  const persistir = async () => {
+    setIntentoGuardar(true);
+    if (items.some(itemInvalido)) {
+      setError("Hay ítems con campos obligatorios sin completar (descripción, cantidad o precio). Corrígelos antes de guardar — resaltados en rojo.");
+      return null;
+    }
+    setError("");
     const payload = {
       tipo:               form.tipo,
       condicionPago:      form.condicionPago,
       titulo:             form.titulo || "por definir",
       numeroCotizacion:   form.numeroCotizacion,
+      atencion:           form.atencion,
       encargado:          form.encargado,
       planta:             form.planta,
-      subtotal:           calc.subtotal,
-      igv:                calc.igv,
-      total:              calc.total,
+      plazoEntrega:       form.plazoEntrega,
+      lugarEntrega:       form.lugarEntrega,
+      validezOferta:      form.validezOferta,
+      subtotal:           totalesMostrados.subtotal,
+      igv:                totalesMostrados.igv,
+      total:              totalesMostrados.total,
       numeroGuiaEmision:  form.numeroGuiaEmision,
       numeroGuiaRemision: form.numeroGuiaRemision,
       codigoSap:          form.codigoSap,
       fechaSalida:        form.fechaSalida || null,
+      items: items.map(i => {
+        const it = {
+          descripcion: i.descripcion,
+          cantidad:    i.cantidad,
+          precio:      i.precio,
+          moneda:      i.moneda,
+          subtotal:    calcSubtotal(i),
+        };
+        if (i.fechaEntrega) it.fechaEntrega = i.fechaEntrega;
+        if (i.subItems?.length > 0) it.subItems = i.subItems.map(s => s.texto).filter(Boolean);
+        return it;
+      }),
     };
     if (form.empresa) payload.empresa = form.empresa;
     if (form.fecha) payload.fecha = form.fecha;
@@ -123,10 +220,18 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     if (res.ok) {
       const actualizada = await res.json();
       setCot(actualizada);
+      setItems((actualizada.items || []).map(itemDesdeDb));
+      setIntentoGuardar(false);
       onGuardada?.(actualizada);
-    } else {
-      setError("Error al guardar los cambios.");
+      return actualizada;
     }
+    setError("Error al guardar los cambios.");
+    return null;
+  };
+
+  const guardar = async () => {
+    setGuardando(true);
+    await persistir();
     setGuardando(false);
   };
 
@@ -149,7 +254,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
 
   const pasos = [
     { tipo: "cotizacion", activo: true,               codigo: cot.codigo },
-    { tipo: "ot",         activo: !!ot,               codigo: ot?.codigo },
+    { tipo: "ot",         activo: ots.length > 0,      codigo: ots.length > 1 ? `${ots.length} OTs` : ots[0]?.codigo },
     { tipo: "informe",    activo: informes.length > 0, codigo: informes.length ? `${informes.length} av.` : "" },
     { tipo: "oc",         activo: !!oc,               codigo: oc?.codigo },
     { tipo: "factura",    activo: !!factura,          codigo: factura?.codigo },
@@ -169,11 +274,11 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
             <div>
               <p className="text-lg font-bold text-white uppercase tracking-widest leading-none">Cotización</p>
               <h1 className="text-lg font-bold font-mono leading-tight">
-                {cot.codigo}
-                {cot.numeroDocumento != null && (
-                  <span className="ml-2 text-xs font-normal text-white/60">Doc. N° {cot.numeroDocumento}</span>
-                )}
+                {form.numeroCotizacion || cot.codigo}
               </h1>
+              <p className="text-xs font-normal text-white/60 leading-tight">
+                {cot.codigo}{cot.numeroDocumento != null && ` · Doc. N° ${cot.numeroDocumento}`}
+              </p>
               {cot.empresa && <p className="text-xs text-white/80 leading-tight">{cot.empresa.razonSocial}</p>}
             </div>
           </div>
@@ -183,7 +288,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               <p className="text-lg font-bold leading-tight">{money(cot.total)}</p>
               <Chip className="mt-0.5 bg-white/20 text-white">{cot.tipo}</Chip>
             </div>
-            <button onClick={() => exportarCotizacionPdf(cot)}
+            <button onClick={() => exportarCotizacionPdf(datosParaPdf())}
               className="bg-white/15 text-white text-sm px-4 py-2 rounded-lg hover:bg-white/25 transition font-medium shrink-0">
               Exportar PDF
             </button>
@@ -232,6 +337,33 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               </select>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">N° Cotización</label>
+                <input name="numeroCotizacion" value={form.numeroCotizacion} onChange={handleChange}
+                  placeholder="—" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Fecha</label>
+                <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className={INP} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Atención</label>
+                <input name="atencion" value={form.atencion} onChange={handleChange}
+                  placeholder="Ej. Área de Compras" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Tipo</label>
+                <select name="tipo" value={form.tipo} onChange={handleChange} className={INP}>
+                  <option value="venta">Venta</option>
+                  <option value="servicio">Servicio</option>
+                </select>
+              </div>
+            </div>
+
             {contactosEmpresa.length > 0 && (
               <div className="bg-sky-50/50 border border-sky-100 rounded-xl p-4 space-y-1.5">
                 <p className="text-xs font-semibold text-sky-600 uppercase tracking-wide">Contactos de la empresa</p>
@@ -245,21 +377,6 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
                 ))}
               </div>
             )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">N° Cotización</label>
-                <input name="numeroCotizacion" value={form.numeroCotizacion} onChange={handleChange}
-                  placeholder="—" className={INP} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Tipo</label>
-                <select name="tipo" value={form.tipo} onChange={handleChange} className={INP}>
-                  <option value="venta">Venta</option>
-                  <option value="servicio">Servicio</option>
-                </select>
-              </div>
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -291,17 +408,31 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Condición de pago</label>
+                <label className="text-xs text-gray-500 block mb-1">Forma de pago</label>
                 <input name="condicionPago" value={form.condicionPago} onChange={handleChange}
                   placeholder="—" className={INP} />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Fecha</label>
-                <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className={INP} />
-              </div>
-              <div>
                 <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
                 <input type="date" name="fechaRecibida" value={form.fechaRecibida} onChange={handleChange} className={INP} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Plazo de entrega</label>
+                <input name="plazoEntrega" value={form.plazoEntrega} onChange={handleChange}
+                  placeholder="Ej. 2 días de recibida su O/C." className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Lugar de entrega</label>
+                <input name="lugarEntrega" value={form.lugarEntrega} onChange={handleChange}
+                  placeholder="Ej. Planta Chilca" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Validez de la oferta</label>
+                <input name="validezOferta" value={form.validezOferta} onChange={handleChange}
+                  placeholder="Ej. 15 días" className={INP} />
               </div>
             </div>
 
@@ -330,58 +461,30 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               </div>
             </div>
 
-            {/* Ítems (solo lectura) */}
-            {cot.items?.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border border-gray-100 rounded-xl overflow-hidden">
-                  <thead className="bg-gray-50 text-gray-500 text-xs">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Descripción</th>
-                      <th className="px-3 py-2 text-center">Cant.</th>
-                      <th className="px-3 py-2 text-right">Precio</th>
-                      <th className="px-3 py-2 text-center">Mon.</th>
-                      <th className="px-3 py-2 text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {cot.items.map((item, i) => (
-                      <tr key={i}>
-                        <td className="px-3 py-2">
-                          <p className="font-medium text-gray-800">{item.descripcion}</p>
-                          {item.subItems?.length > 0 && (
-                            <ul className="mt-1 space-y-0.5">
-                              {item.subItems.map((s, j) => (
-                                <li key={j} className="text-xs text-gray-500 flex gap-1.5"><span>•</span><span>{s}</span></li>
-                              ))}
-                            </ul>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-center">{item.cantidad}</td>
-                        <td className="px-3 py-2 text-right">{Number(item.precio).toFixed(2)}</td>
-                        <td className="px-3 py-2 text-center">{item.moneda === "PEN" ? "S/" : "$"}</td>
-                        <td className="px-3 py-2 text-right font-medium">{Number(item.subtotal).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
             {/* Cálculos */}
             <div className="rounded-xl bg-gradient-to-br from-gray-50 to-sky-50/40 border border-gray-100 p-4 space-y-4">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Subtotal sin IGV</label>
-                <input type="number" name="subtotal" value={form.subtotal} onChange={handleChange}
-                  step="0.01" min="0" placeholder="0.00" className={`${INP} text-lg font-semibold`} />
+                <label className="text-xs text-gray-500 block mb-1">
+                  Subtotal sin IGV
+                  {usarTotalesDeItems && <span className="text-gray-400 font-normal"> (calculado desde Ítems / Servicios)</span>}
+                </label>
+                {usarTotalesDeItems ? (
+                  <p className={`${INP} text-lg font-semibold bg-gray-50 text-gray-700 border-transparent`}>
+                    {totalesMostrados.subtotal.toFixed(2)}
+                  </p>
+                ) : (
+                  <input type="number" name="subtotal" value={form.subtotal} onChange={handleChange}
+                    step="0.01" min="0" placeholder="0.00" className={`${INP} text-lg font-semibold`} />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="text-center">
                   <p className="text-xs text-gray-400">IGV 18%</p>
-                  <p className="font-semibold text-gray-700">{calc.igv.toFixed(2)}</p>
+                  <p className="font-semibold text-gray-700">{totalesMostrados.igv.toFixed(2)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-gray-400">Total</p>
-                  <p className="font-semibold text-gray-700">{calc.total.toFixed(2)}</p>
+                  <p className="font-semibold text-gray-700">{totalesMostrados.total.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -400,11 +503,27 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               <p className="text-sm text-gray-600 line-clamp-2">{cot.titulo}</p>
             </TarjetaRelacion>
 
-            <TarjetaRelacion tipo="ot" codigo={ot?.codigo} numero={ot?.numeroOT} vacio={!ot}
-              onClick={ot ? () => onNavegar?.({ tipo: "ot", data: ot }) : undefined}
-              onCrear={!ot && !cot.anulado ? () => setCrearOTOpen(true) : undefined} crearLabel="OT">
-              {ot?.estado && <Chip className={badgeOT(ot.estado)}>{ot.estado}</Chip>}
-            </TarjetaRelacion>
+            {ots.length === 0 ? (
+              <TarjetaRelacion tipo="ot" vacio
+                onCrear={!cot.anulado ? () => setCrearOTOpen(true) : undefined} crearLabel="OT" />
+            ) : (
+              ots.map(o => (
+                <TarjetaRelacion key={o._id} tipo="ot" codigo={o.codigo} numero={o.numeroOT}
+                  onClick={() => onNavegar?.({ tipo: "ot", data: o })}>
+                  {o.estado && <Chip className={badgeOT(o.estado)}>{o.estado}</Chip>}
+                </TarjetaRelacion>
+              ))
+            )}
+            {!cot.anulado && (
+              <div className="flex items-center gap-3 -mt-2 px-1">
+                {ots.length > 0 && (
+                  <button type="button" onClick={() => setCrearOTOpen(true)}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline">+ Crear otra OT</button>
+                )}
+                <button type="button" onClick={() => setBuscadorOTOpen(true)}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline">+ Vincular OT existente</button>
+              </div>
+            )}
 
             <TarjetaRelacion
               tipo="informe"
@@ -432,6 +551,25 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
             </TarjetaRelacion>
           </section>
         </div>
+
+        {/* Ítems — ancho completo, debajo de Datos + Relaciones */}
+        <div className="max-w-6xl mx-auto px-8 pb-8">
+          <TablaItemsCotizacion
+            items={items}
+            onItemsChange={setItems}
+            tipo={form.tipo}
+            puedeEditar={puedeEditar}
+            disabled={cot.anulado}
+            intentoGuardar={intentoGuardar}
+            totalesMostrados={totalesMostrados}
+            seleccionables={form.tipo === "servicio" && puedeEditar && !cot.anulado}
+            seleccionados={seleccionados}
+            onToggleSeleccion={toggleSeleccion}
+            onGenerarOT={generarOTSeleccionados}
+            generando={generandoOT}
+            onVerOT={(o) => onNavegar?.({ tipo: "ot", data: o })}
+          />
+        </div>
       </div>
 
       {crearOTOpen && (
@@ -439,6 +577,29 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
           cotizacion={cot}
           onClose={() => setCrearOTOpen(false)}
           onCreada={() => { setCrearOTOpen(false); cargarRelaciones(); }}
+        />
+      )}
+
+      {buscadorOTOpen && (
+        <BuscadorOrdenTrabajo
+          onClose={() => setBuscadorOTOpen(false)}
+          onSelect={async (orden) => {
+            const otraCot = orden.cotizacion && (orden.cotizacion._id || orden.cotizacion) !== cot._id
+              ? orden.cotizacion : null;
+            if (otraCot) {
+              const codigoOtra = otraCot.codigo || "otra cotización";
+              if (!window.confirm(`Esta OT ya está vinculada a ${codigoOtra} — ¿deseas reasignarla a esta cotización?`)) return;
+            }
+            const res = await fetchAuth(`/ordenes-trabajo/${orden._id}/vincular-cotizacion`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ cotizacion: cot._id }),
+            });
+            if (res.ok) {
+              setBuscadorOTOpen(false);
+              cargarRelaciones();
+            }
+          }}
         />
       )}
 

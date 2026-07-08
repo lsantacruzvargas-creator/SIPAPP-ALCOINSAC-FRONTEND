@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
 import DetalleDocumento from "../components/DetalleDocumento";
 import ModalNuevaOT from "../components/ModalNuevaOT";
+import { DotChip, badgeOT, dotOT } from "../components/detalleShared";
 import * as XLSX from "xlsx";
 
 const MESES = [
@@ -9,7 +10,7 @@ const MESES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-const FILTROS_VACIO = { ano: "", mes: "", prioridad: "", estado: "", empresa: "", planta: "", busqueda: "" };
+const FILTROS_VACIO = { ano: "", mes: "", estado: "", empresa: "", planta: "", busqueda: "" };
 
 const SORTS = [
   { valor: "fecha",             label: "Más reciente" },
@@ -52,12 +53,14 @@ function TablaOTs({ titulo, acento, ordenes, onSelect, vacioMsg }) {
                 <th className={`${TH} text-left`}>Empresa</th>
                 <th className={`${TH} text-left`}>Planta</th>
                 <th className={`${TH} text-left`}>Encargado</th>
+                <th className={`${TH} text-left`}>Descripción</th>
+                <th className={`${TH} text-center`}>Estado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {ordenes.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td>
                 </tr>
               ) : (
                 ordenes.map((o) => (
@@ -87,6 +90,10 @@ function TablaOTs({ titulo, acento, ordenes, onSelect, vacioMsg }) {
                     </td>
                     <td className="px-4 py-3.5 text-gray-600">{o.planta || <span className="text-gray-300">—</span>}</td>
                     <td className="px-4 py-3.5 text-gray-600">{o.encargado || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3.5 text-gray-700">{o.titulo || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3.5 text-center">
+                      <DotChip chip={badgeOT(o.estado)} dot={dotOT(o.estado)}>{o.estado}</DotChip>
+                    </td>
                   </tr>
                 ))
               )}
@@ -103,7 +110,7 @@ export default function ListaOrdenesTrabajo() {
   const [facturaPorNumDoc, setFacturaPorNumDoc] = useState(new Map());
   const [ocPorNumDoc, setOcPorNumDoc] = useState(new Map());
   const [filtros, setFiltros] = useState(FILTROS_VACIO);
-  const [sortBy, setSortBy] = useState("fecha");
+  const [sortBy, setSortBy] = useState("numeroOT");
   const [seleccionada, setSeleccionada] = useState(null);
   const [crearOTOpen, setCrearOTOpen] = useState(false);
 
@@ -154,7 +161,6 @@ export default function ListaOrdenesTrabajo() {
     return (
       (!filtros.ano || fecha.getFullYear() === parseInt(filtros.ano)) &&
       (!filtros.mes || fecha.getMonth() + 1 === parseInt(filtros.mes)) &&
-      (!filtros.prioridad || o.prioridad === filtros.prioridad) &&
       (!filtros.estado || o.estado === filtros.estado) &&
       (!filtros.empresa || o.empresa?._id === filtros.empresa) &&
       (!filtros.planta || o.ingresoEquipo?.planta === filtros.planta) &&
@@ -175,11 +181,9 @@ export default function ListaOrdenesTrabajo() {
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
-  const esFacturada = (o) => o.numeroDocumento != null && facturaPorNumDoc.has(o.numeroDocumento);
   const esCerrada = (o) => o.estadoCadena === "cerrado";
   const cerradas = filtradas.filter((o) => esCerrada(o));
-  const pendientes = filtradas.filter((o) => !esCerrada(o) && !esFacturada(o));
-  const facturadas = filtradas.filter((o) => !esCerrada(o) && esFacturada(o));
+  const pendientes = filtradas.filter((o) => !esCerrada(o));
   const hayFiltro = Object.values(filtros).some(Boolean);
 
   // Mismas columnas que TablaOTs — una hoja por cada tabla visible.
@@ -190,13 +194,14 @@ export default function ListaOrdenesTrabajo() {
     "Empresa":        o.empresa?.razonSocial || "—",
     "Planta":         o.planta || "—",
     "Encargado":      o.encargado || "—",
+    "Descripción":    o.titulo || "—",
+    "Estado":         o.estado || "—",
   });
 
   const exportarExcel = () => {
     const wb = XLSX.utils.book_new();
     [
       ["Pendientes", pendientes],
-      ["Facturadas", facturadas],
       ["Cerradas", cerradas],
     ].forEach(([nombre, lista]) => {
       const ws = XLSX.utils.json_to_sheet(lista.map(filaOT));
@@ -249,13 +254,6 @@ export default function ListaOrdenesTrabajo() {
             ))}
           </select>
         )}        
-
-        <select name="prioridad" value={filtros.prioridad} onChange={handleFiltro} className={SELECT}>
-          <option value="">Toda prioridad</option>
-          <option value="alta">Alta</option>
-          <option value="media">Media</option>
-          <option value="baja">Baja</option>
-        </select>
 
         <select name="estado" value={filtros.estado} onChange={handleFiltro} className={SELECT}>
           <option value="">Todo estado</option>
@@ -311,14 +309,6 @@ export default function ListaOrdenesTrabajo() {
         ordenes={pendientes}
         onSelect={setSeleccionada}
         vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes pendientes"}
-      />
-
-      <TablaOTs
-        titulo="Órdenes facturadas"
-        acento="bg-emerald-500"
-        ordenes={facturadas}
-        onSelect={setSeleccionada}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes facturadas"}
       />
 
       <TablaOTs

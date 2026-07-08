@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
 
 const INP    = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-full";
@@ -17,6 +17,12 @@ export default function ModalCrearCotizacion({ orden, onClose, onCreada }) {
   const [subtotal, setSubtotal] = useState(orden.subtotal > 0 ? String(orden.subtotal) : "");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchAuth("/cotizaciones/siguiente-numero-cotizacion").then(r =>
+      r.ok && r.json().then(d => setNumeroCotizacion(d.siguiente))
+    );
+  }, []);
 
   const guardar = async () => {
     setGuardando(true);
