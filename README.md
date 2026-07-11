@@ -26,7 +26,11 @@ npm run electron:build    # empaqueta instalador de escritorio (NSIS, dist-elect
 
 ## Configuración
 
-La URL del backend se resuelve en `src/utils/fetchAuth.js`. Verificar que apunte al puerto donde corre la API (por defecto `http://localhost:5001/api`).
+La URL del backend se resuelve vía la variable de entorno `VITE_API_URL`
+(build-time, Vite) en `src/utils/fetchAuth.js`, con fallback a
+`http://localhost:5000/api` si no está definida. Para apuntar a producción,
+crear un `.env` en `Frontend/` con `VITE_API_URL=https://api.alcoin-sac.com/api`
+antes de compilar.
 
 ## Estructura
 
@@ -44,9 +48,9 @@ src/
 |-----------------------------|-----------------------------------------------|
 | `Login`                      | Autenticación                                 |
 | `Dashboard`                   | Panel general (rol admin/vendedor)            |
-| `Empresas`                    | Empresas cliente + plantas                    |
-| `Cotizaciones` / `ListaCotizaciones` | Presupuestos                          |
-| `ListaOrdenesTrabajo`          | Órdenes de Trabajo                            |
+| `Empresas`                    | Empresas cliente + plantas + contactos        |
+| `ListaCotizaciones`           | Presupuestos — filtros + selector de vista (Pendientes de OC / Con OC / Cerradas / Sin OT / Todas), crear cotización "en frío" (`ModalNuevaCotizacion`) o desde una OT |
+| `ListaOrdenesTrabajo`          | Órdenes de Trabajo — filtros, columna Estado con chip de color |
 | `IngresoEquipos`               | Ingreso de equipos a taller                   |
 | `ListaOrdenesCompra`            | Órdenes de Compra (crear, editar, importar Excel) |
 | `ListaFacturas`                  | Facturas (crear, editar, importar Excel)      |
@@ -57,11 +61,42 @@ src/
 
 JWT almacenado en `localStorage`. `src/utils/fetchAuth.js` adjunta el token en cada request y expone `getUsuario()`/`logout()`. La navbar y las rutas se muestran/ocultan según el rol: `admin`, `vendedor`, `tecnico`, `almacenero`.
 
+## Temas
+
+Selector Claro / Oscuro / Sepia en la Navbar (3 botones), persistido en
+`localStorage` y aplicado vía atributo `data-theme` en `<html>` + variables
+CSS definidas en `src/index.css`.
+
+## Cotizaciones — ítems y PDF
+
+- `TablaItemsCotizacion.jsx` (compartida entre `DetalleCotizacion.jsx` y
+  `ModalNuevaCotizacion.jsx`): tabla de ítems con dos formas de agregar
+  filas — manual (descripción libre) o desde el catálogo de servicios
+  (`SelectorCatalogoServicios.jsx` + `src/utils/catalogoServicios.js`,
+  grupos padre en negrita + sub-ítems anidados). Sobre tipo "servicio",
+  permite seleccionar varios ítems y generar una Orden de Trabajo por cada
+  uno (`+ Generar OT de N ítems`).
+- `src/utils/cotizacionPdf.js`: exporta a PDF con jsPDF + jspdf-autotable —
+  membrete con logos (`public/assets/logos/`), marca de agua centrada,
+  tabla de ítems (negrita en descripciones padre, oculta valores en 0.00),
+  bloque de condiciones comerciales, y fila de logos de marcas
+  representadas al pie.
+
 ## Convenciones de UI
 
 - Formularios: un solo `useState` por formulario + `handleChange` genérico.
 - Precios/montos traídos de la API son siempre `readOnly`.
-- Vistas de detalle (`DetalleOrdenCompra`, `DetalleFactura`) se navegan reemplazando el estado en `DetalleDocumento`, sin anidar overlays.
+- Vistas de detalle a pantalla completa (`DetalleCotizacion`,
+  `DetalleOrdenTrabajo`, `DetalleOrdenCompra`, `DetalleFactura`) navegan
+  entre sí reemplazando el estado en `DetalleDocumento.jsx` (sin anidar
+  overlays); el panel "Relaciones" soporta relaciones 1:N (ej. varias OT
+  bajo una misma Cotización), no solo 1:1.
+- Componentes compartidos de detalle (`TarjetaRelacion`, `FlujoNegocio`,
+  `Chip`, `DotChip`, `money()`, helpers `badge*/dot*`) viven en
+  `src/components/detalleShared.jsx`.
+- Páginas de lista con varias categorías (pendientes/cerradas/etc.) usan un
+  selector de "vista" para mostrar una tabla a la vez (más la opción
+  "Todas las tablas"), en vez de apilarlas siempre visibles.
 - Import/Export Excel vía librería `xlsx` (`ModalImportarExcel.jsx`, botones "Exportar/Importar Excel" en las tablas).
 
 ## Build de escritorio (Electron)

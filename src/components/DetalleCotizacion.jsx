@@ -57,7 +57,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   const [buscadorOTOpen, setBuscadorOTOpen] = useState(false);
   const [seleccionados, setSeleccionados] = useState(() => new Set());
   const [generandoOT, setGenerandoOT] = useState(false);
-  const puedeEditar = getUsuario()?.rol === "admin";
+  const puedeEditar = ["admin", "asistente"].includes(getUsuario()?.rol);
 
   const cargarRelaciones = () => {
     Promise.all([

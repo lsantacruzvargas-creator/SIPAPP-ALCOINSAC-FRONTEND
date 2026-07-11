@@ -44,7 +44,7 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
   const [error, setError]         = useState("");
   const [cargandoFactura, setCargandoFactura] = useState(false);
   const [crearFacturaOpen, setCrearFacturaOpen] = useState(false);
-  const puedeEditar = getUsuario()?.rol === "admin";
+  const puedeEditar = ["admin", "asistente"].includes(getUsuario()?.rol);
 
   const abrirFactura = async () => {
     if (!facturaVinculada || cargandoFactura) return;

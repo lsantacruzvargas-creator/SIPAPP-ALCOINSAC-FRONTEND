@@ -44,7 +44,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
     estado:             inicial.estado             || "pendiente",
   });
   const rolActual = getUsuario()?.rol;
-  const puedeEditar = rolActual === "admin";
+  const puedeEditar = ["admin", "asistente"].includes(rolActual);
   const [usuarios, setUsuarios]   = useState([]);
   const [empresas, setEmpresas]   = useState([]);
   const [nuevaEmpresaOpen, setNuevaEmpresaOpen] = useState(false);
