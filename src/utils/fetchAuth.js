@@ -26,6 +26,8 @@ export const uploadAuth = (endpoint, formData) => {
   });
 };
 
+const METODOS_ESCRITURA = ["POST", "PUT", "PATCH", "DELETE"];
+
 export const fetchAuth = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
   const res = await fetch(`${API}${endpoint}`, {
@@ -39,6 +41,11 @@ export const fetchAuth = async (endpoint, options = {}) => {
   if (res.status === 401) {
     localStorage.clear();
     window.location.hash = "/login";
+  }
+  // Avisa al Navbar que hubo un guardado exitoso para que refresque la
+  // campana de notificaciones al instante, sin esperar el polling de 60s.
+  if (res.ok && METODOS_ESCRITURA.includes(options.method)) {
+    window.dispatchEvent(new Event("app:cambio-guardado"));
   }
   return res;
 };

@@ -11,6 +11,7 @@ import ListaFacturas from "./pages/ListaFacturas";
 import ListaOrdenesCompra from "./pages/ListaOrdenesCompra";
 import IngresoEquipos from "./pages/IngresoEquipos";
 import Usuarios from "./pages/Usuarios";
+import CatalogoServicios from "./pages/CatalogoServicios";
 import Almacen from "./pages/Almacen";
 import NotFound from "./pages/NotFound";
 
@@ -114,6 +115,15 @@ export default function App() {
         element={
           <ProtectedRoute roles={["admin"]}>
             <Layout><Usuarios /></Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/catalogo-servicios"
+        element={
+          <ProtectedRoute roles={["admin", "asistente"]}>
+            <Layout><CatalogoServicios /></Layout>
           </ProtectedRoute>
         }
       />

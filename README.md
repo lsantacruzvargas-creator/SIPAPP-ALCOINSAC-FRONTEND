@@ -72,10 +72,11 @@ CSS definidas en `src/index.css`.
 - `TablaItemsCotizacion.jsx` (compartida entre `DetalleCotizacion.jsx` y
   `ModalNuevaCotizacion.jsx`): tabla de ítems con dos formas de agregar
   filas — manual (descripción libre) o desde el catálogo de servicios
-  (`SelectorCatalogoServicios.jsx` + `src/utils/catalogoServicios.js`,
-  grupos padre en negrita + sub-ítems anidados). Sobre tipo "servicio",
-  permite seleccionar varios ítems y generar una Orden de Trabajo por cada
-  uno (`+ Generar OT de N ítems`).
+  (`SelectorCatalogoServicios.jsx`, trae los grupos/ítems desde
+  `GET /catalogo-servicios`; gestión de altas/bajas en `/catalogo-servicios`,
+  admin y asistente), grupos padre en negrita + sub-ítems anidados. Sobre
+  tipo "servicio", permite seleccionar varios ítems y generar una Orden de
+  Trabajo por cada uno (`+ Generar OT de N ítems`).
 - `src/utils/cotizacionPdf.js`: exporta a PDF con jsPDF + jspdf-autotable —
   membrete con logos (`public/assets/logos/`), marca de agua centrada,
   tabla de ítems (negrita en descripciones padre, oculta valores en 0.00),

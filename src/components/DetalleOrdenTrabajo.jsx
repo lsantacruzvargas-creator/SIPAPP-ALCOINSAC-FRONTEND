@@ -3,6 +3,9 @@ import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import ModalOrdenCompra from "./ModalOrdenCompra";
 import ModalCrearCotizacion from "./ModalCrearCotizacion";
 import ModalEmpresa from "./ModalEmpresa";
+import ModalSeleccionarTipoInforme from "./ModalSeleccionarTipoInforme";
+import FormInformeTecnico from "./FormInformeTecnico";
+import VistaInformeTecnico from "./VistaInformeTecnico";
 import {
   FlujoNegocio, TarjetaRelacion, Chip,
   badgePago, badgeOT, money, BotonAnular, BannerAnulado,
@@ -56,6 +59,10 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
   const [error, setError]         = useState("");
   const [crearOCOpen, setCrearOCOpen] = useState(false);
   const [crearCotOpen, setCrearCotOpen] = useState(false);
+  const [seleccionarTipoOpen, setSeleccionarTipoOpen] = useState(false);
+  const [tipoElegido, setTipoElegido] = useState(null);
+  const [verInforme, setVerInforme] = useState(null);
+  const [editandoInforme, setEditandoInforme] = useState(null);
 
   const cargarRelaciones = () => {
     Promise.all([
@@ -83,7 +90,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
       setFactura(factResuelta);
     });
 
-    fetchAuth(`/informes?ordenTrabajo=${ot._id}`)
+    fetchAuth(`/informes-tecnicos?ordenTrabajo=${ot._id}`)
       .then(r => r.ok && r.json())
       .then(infs => setInformes(infs || []));
   };
@@ -151,12 +158,12 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
   };
 
   const ie     = ot.ingresoEquipo;
-  const ultimo = informes[informes.length - 1];
+  const ultimo = informes[0];
 
   const pasos = [
     { tipo: "cotizacion", activo: !!cot,              codigo: cot?.codigo },
     { tipo: "ot",         activo: true,               codigo: ot.codigo },
-    { tipo: "informe",    activo: informes.length > 0, codigo: informes.length ? `${informes.length} av.` : "" },
+    { tipo: "informe",    activo: informes.length > 0, codigo: informes.length > 1 ? `${informes.length} informes` : informes[0]?.codigo },
     { tipo: "oc",         activo: !!oc,               codigo: oc?.codigo },
     { tipo: "factura",    activo: !!factura,          codigo: factura?.codigo },
   ];
@@ -390,8 +397,12 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
 
             <TarjetaRelacion
               tipo="informe"
-              codigo={informes.length ? `${informes.length} avance${informes.length !== 1 ? "s" : ""}` : null}
-              vacio={informes.length === 0}>
+              codigo={ultimo?.codigo}
+              numero={informes.length > 1 ? `${informes.length} informes` : undefined}
+              vacio={informes.length === 0}
+              onClick={ultimo ? () => setVerInforme(ultimo) : undefined}
+              onCrear={!ot.anulado ? () => setSeleccionarTipoOpen(true) : undefined}
+              crearLabel="informe">
               {ultimo?.fechaHoraGuardado && (
                 <p className="text-xs text-gray-500">
                   Último: {new Date(ultimo.fechaHoraGuardado).toLocaleDateString("es-PE")}
@@ -433,6 +444,41 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
           orden={ot}
           onClose={() => setCrearCotOpen(false)}
           onCreada={(nueva) => { setCrearCotOpen(false); onNavegar?.({ tipo: "cotizacion", data: nueva }); }}
+        />
+      )}
+
+      {seleccionarTipoOpen && (
+        <ModalSeleccionarTipoInforme
+          onSeleccionar={(tipo) => { setSeleccionarTipoOpen(false); setTipoElegido(tipo); }}
+          onClose={() => setSeleccionarTipoOpen(false)}
+        />
+      )}
+
+      {tipoElegido && (
+        <FormInformeTecnico
+          ordenTrabajo={ot}
+          tipo={tipoElegido}
+          onClose={() => setTipoElegido(null)}
+          onGuardado={(informe) => { setTipoElegido(null); cargarRelaciones(); setVerInforme(informe); }}
+        />
+      )}
+
+      {verInforme && (
+        <VistaInformeTecnico
+          informe={verInforme}
+          ordenTrabajo={ot}
+          onClose={() => setVerInforme(null)}
+          onModificar={puedeEditar && !verInforme.anulado ? () => { setEditandoInforme(verInforme); setVerInforme(null); } : undefined}
+        />
+      )}
+
+      {editandoInforme && (
+        <FormInformeTecnico
+          ordenTrabajo={ot}
+          tipo={editandoInforme.tipo}
+          informeExistente={editandoInforme}
+          onClose={() => setEditandoInforme(null)}
+          onGuardado={(informe) => { setEditandoInforme(null); cargarRelaciones(); setVerInforme(informe); }}
         />
       )}
 

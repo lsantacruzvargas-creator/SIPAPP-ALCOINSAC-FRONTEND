@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { CATALOGO_SERVICIOS } from "../utils/catalogoServicios";
+import { useState, useEffect } from "react";
+import { fetchAuth } from "../utils/fetchAuth";
 
 // Panel lateral para elegir ítems del catálogo de servicios. El padre decide
 // si el ítem se fusiona con la última fila (mismo grupo) o abre una nueva —
@@ -7,6 +7,15 @@ import { CATALOGO_SERVICIOS } from "../utils/catalogoServicios";
 export default function SelectorCatalogoServicios({ onSeleccionar, onClose }) {
   const [busqueda, setBusqueda] = useState("");
   const [abiertos, setAbiertos] = useState(() => new Set());
+  const [catalogo, setCatalogo] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    fetchAuth("/catalogo-servicios")
+      .then((r) => r.ok && r.json())
+      .then((data) => setCatalogo(data || []))
+      .finally(() => setCargando(false));
+  }, []);
 
   const q = busqueda.trim().toLowerCase();
 
@@ -19,7 +28,7 @@ export default function SelectorCatalogoServicios({ onSeleccionar, onClose }) {
     });
   };
 
-  const gruposFiltrados = CATALOGO_SERVICIOS
+  const gruposFiltrados = catalogo
     .map((g) => {
       const matchGrupo = g.grupo.toLowerCase().includes(q);
       const items = !q || matchGrupo ? g.items : g.items.filter((it) => it.toLowerCase().includes(q));
@@ -53,8 +62,12 @@ export default function SelectorCatalogoServicios({ onSeleccionar, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-2">
-          {gruposFiltrados.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-10">Sin resultados para “{busqueda}”.</p>
+          {cargando ? (
+            <p className="text-sm text-gray-400 text-center py-10">Cargando catálogo…</p>
+          ) : gruposFiltrados.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-10">
+              {catalogo.length === 0 ? "El catálogo está vacío." : `Sin resultados para “${busqueda}”.`}
+            </p>
           ) : (
             gruposFiltrados.map((g) => {
               const abierto = q ? true : abiertos.has(g.grupo);

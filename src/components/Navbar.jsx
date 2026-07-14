@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { getUsuario, logout } from "../utils/fetchAuth.js";
+import { getUsuario, logout, fetchAuth } from "../utils/fetchAuth.js";
+import PanelNotificaciones from "./PanelNotificaciones";
 
 const ROL_LABEL = { admin: "Admin", tecnico: "Técnico", almacenero: "Almacenero", asistente: "Asistente" };
 
@@ -49,6 +50,39 @@ export default function Navbar() {
   const ir = (path) => { navigate(path); setMenuOpen(false); };
   const inicial = usuario?.nombre?.charAt(0)?.toUpperCase() || "?";
 
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [panelAbierto, setPanelAbierto] = useState(false);
+  const [vistasHasta, setVistasHasta] = useState(() => Number(localStorage.getItem("notif_vistas_hasta")) || 0);
+
+  useEffect(() => {
+    if (!esComercial) return;
+    const cargar = () => {
+      fetchAuth("/notificaciones")
+        .then((r) => r.ok && r.json())
+        .then((data) => data && setNotificaciones(data));
+    };
+    cargar();
+    const intervalo = setInterval(cargar, 60000);
+    // Refresco inmediato: cualquier guardado exitoso en la app (Cotización,
+    // OT, Informe, OC, Factura, Catálogo) dispara este evento desde fetchAuth.
+    window.addEventListener("app:cambio-guardado", cargar);
+    return () => {
+      clearInterval(intervalo);
+      window.removeEventListener("app:cambio-guardado", cargar);
+    };
+  }, [esComercial]);
+
+  const sinVer = notificaciones.filter((n) => new Date(n.fecha).getTime() > vistasHasta).length;
+
+  const togglePanel = () => {
+    if (!panelAbierto) {
+      const ahora = Date.now();
+      localStorage.setItem("notif_vistas_hasta", String(ahora));
+      setVistasHasta(ahora);
+    }
+    setPanelAbierto((v) => !v);
+  };
+
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
@@ -78,6 +112,7 @@ export default function Navbar() {
               <button onClick={() => ir("/ordenes-compra")} className={linkCls("/ordenes-compra")}>Ordenes de Compra</button>
               <button onClick={() => ir("/facturas")} className={linkCls("/facturas")}>Facturas</button>
               <button onClick={() => ir("/empresas")} className={linkCls("/empresas")}>Empresas</button>
+              <button onClick={() => ir("/catalogo-servicios")} className={linkCls("/catalogo-servicios")}>Catálogo</button>
             </>)}
             {(esAdmin || esAlmacenero || esAsistente) && (
               <button onClick={() => ir("/almacen")} className={linkCls("/almacen")}>Almacén</button>
@@ -104,6 +139,23 @@ export default function Navbar() {
               </button>
             ))}
           </div>
+          {esComercial && (
+            <button
+              onClick={togglePanel}
+              title="Notificaciones"
+              className="relative flex items-center justify-center w-9 h-9 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {sinVer > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {sinVer > 9 ? "9+" : sinVer}
+                </span>
+              )}
+            </button>
+          )}
           <div className="hidden sm:flex items-center gap-2.5">
             <div className="text-right">
               <p className="text-sm font-semibold text-gray-700 leading-tight">{usuario?.nombre}</p>
@@ -173,6 +225,7 @@ export default function Navbar() {
             <button onClick={() => ir("/ordenes-compra")} className={linkMovil("/ordenes-compra")}>Órdenes de Compra</button>
             <button onClick={() => ir("/facturas")} className={linkMovil("/facturas")}>Facturas</button>
             <button onClick={() => ir("/empresas")} className={linkMovil("/empresas")}>Empresas</button>
+            <button onClick={() => ir("/catalogo-servicios")} className={linkMovil("/catalogo-servicios")}>Catálogo</button>
           </>)}
           {(esAdmin || esAlmacenero || esAsistente) && (
             <button onClick={() => ir("/almacen")} className={linkMovil("/almacen")}>Almacén</button>
@@ -185,6 +238,10 @@ export default function Navbar() {
             Cerrar sesión
           </button>
         </div>
+      )}
+
+      {panelAbierto && (
+        <PanelNotificaciones notificaciones={notificaciones} onClose={() => setPanelAbierto(false)} />
       )}
     </nav>
   );
