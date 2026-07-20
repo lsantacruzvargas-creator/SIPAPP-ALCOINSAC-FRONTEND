@@ -158,6 +158,7 @@ export default function ListaOrdenesCompra() {
   const [busqueda, setBusqueda] = useState("");
   const [estadoOT, setEstadoOT] = useState("");
   const [empresa, setEmpresa]   = useState("");
+  const [planta, setPlanta]     = useState("");
   const [anio, setAnio]         = useState(hoy.getFullYear());
   const [mes, setMes]           = useState(hoy.getMonth() + 1);
 
@@ -207,6 +208,14 @@ export default function ListaOrdenesCompra() {
     ).values(),
   ].sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
 
+  const plantasLista = [...new Set(
+    (empresa ? ordenes.filter((o) => o.empresa?._id === empresa) : ordenes)
+      .map((o) => o.planta)
+      .filter(Boolean)
+  )].sort();
+
+  const handleEmpresa = (e) => { setEmpresa(e.target.value); setPlanta(""); };
+
   const filtradas = ordenes.filter((o) => {
     const fecha = new Date(o.fecha);
     const matchAnio  = fecha.getFullYear() === anio;
@@ -226,7 +235,8 @@ export default function ListaOrdenesCompra() {
     const estadoActual = otMap[cotId];
     const matchEstado = !estadoOT || estadoActual === estadoOT;
     const matchEmpresa = !empresa || o.empresa?._id === empresa;
-    return matchAnio && matchMes && matchBusq && matchEstado && matchEmpresa;
+    const matchPlanta = !planta || o.planta === planta;
+    return matchAnio && matchMes && matchBusq && matchEstado && matchEmpresa && matchPlanta;
   });
 
   filtradas.sort((a, b) => {
@@ -235,7 +245,7 @@ export default function ListaOrdenesCompra() {
     return new Date(b.fecha) - new Date(a.fecha);
   });
 
-  const hayFiltro = busqueda || estadoOT || empresa || anio !== hoy.getFullYear() || mes !== hoy.getMonth() + 1;
+  const hayFiltro = busqueda || estadoOT || empresa || planta || anio !== hoy.getFullYear() || mes !== hoy.getMonth() + 1;
 
   const tieneFactura = (o) => !!(factByOCMap[o._id] || factMap[o.cotizacion?._id || o.cotizacion]);
   const cerradas   = filtradas.filter((o) => o.estadoCadena === "cerrado");
@@ -333,7 +343,7 @@ export default function ListaOrdenesCompra() {
         </select>
         <select
           value={empresa}
-          onChange={(e) => setEmpresa(e.target.value)}
+          onChange={handleEmpresa}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
         >
           <option value="">Toda empresa</option>
@@ -343,6 +353,18 @@ export default function ListaOrdenesCompra() {
             </option>
           ))}
         </select>
+        {plantasLista.length > 0 && (
+          <select
+            value={planta}
+            onChange={(e) => setPlanta(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+          >
+            <option value="">Toda planta</option>
+            {plantasLista.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        )}
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
@@ -369,7 +391,7 @@ export default function ListaOrdenesCompra() {
         </select>
         {hayFiltro && (
           <button
-            onClick={() => { setBusqueda(""); setEstadoOT(""); setEmpresa(""); setAnio(hoy.getFullYear()); setMes(hoy.getMonth() + 1); }}
+            onClick={() => { setBusqueda(""); setEstadoOT(""); setEmpresa(""); setPlanta(""); setAnio(hoy.getFullYear()); setMes(hoy.getMonth() + 1); }}
             className="text-sm text-gray-400 hover:text-gray-700 transition"
           >
             Limpiar

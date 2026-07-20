@@ -11,7 +11,7 @@ const MESES = [
   "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
 ];
 
-const FILTROS_VACIO = { empresa: "", ano: "", mes: "", estadoPago: "", busqueda: "" };
+const FILTROS_VACIO = { empresa: "", planta: "", ano: "", mes: "", estadoPago: "", busqueda: "" };
 
 const ESTADOS_PAGO = [
   { valor: "sin pago",     label: "Sin pago",     cls: "bg-red-50 text-red-700" },
@@ -232,17 +232,25 @@ export default function ListaFacturas() {
     ).values(),
   ].sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
 
+  const plantasLista = [...new Set(
+    (filtros.empresa ? facturas.filter(f => f.empresa?._id === filtros.empresa) : facturas)
+      .map(f => f.planta)
+      .filter(Boolean)
+  )].sort();
+
   const anos = [...new Set(
     facturas.map(f => new Date(f.fechaEmision).getFullYear())
   )].sort((a, b) => b - a);
 
   const handleFiltro = e => setFiltros({ ...filtros, [e.target.name]: e.target.value });
+  const handleEmpresa = e => setFiltros({ ...filtros, empresa: e.target.value, planta: "" });
 
   const filtradas = facturas.filter(f => {
     const fecha = new Date(f.fechaEmision);
     const q     = filtros.busqueda.toLowerCase();
     return (
       (!filtros.empresa    || f.empresa?._id === filtros.empresa) &&
+      (!filtros.planta     || f.planta === filtros.planta) &&
       (!filtros.ano        || fecha.getFullYear() === parseInt(filtros.ano)) &&
       (!filtros.mes        || fecha.getMonth() + 1 === parseInt(filtros.mes)) &&
       (!filtros.estadoPago || f.estadoPago === filtros.estadoPago) &&
@@ -360,7 +368,7 @@ export default function ListaFacturas() {
 
       {/* Filtros */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-5 flex flex-wrap gap-3 items-center">
-        <select name="empresa" value={filtros.empresa} onChange={handleFiltro} className={SELECT}>
+        <select name="empresa" value={filtros.empresa} onChange={handleEmpresa} className={SELECT}>
           <option value="">Toda empresa</option>
           {empresasLista.map(e => (
             <option key={e._id} value={e._id}>
@@ -368,6 +376,12 @@ export default function ListaFacturas() {
             </option>
           ))}
         </select>
+        {plantasLista.length > 0 && (
+          <select name="planta" value={filtros.planta} onChange={handleFiltro} className={SELECT}>
+            <option value="">Toda planta</option>
+            {plantasLista.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        )}
         <select name="ano" value={filtros.ano} onChange={handleFiltro} className={SELECT}>
           <option value="">Todos los años</option>
           {anos.map(a => <option key={a} value={a}>{a}</option>)}

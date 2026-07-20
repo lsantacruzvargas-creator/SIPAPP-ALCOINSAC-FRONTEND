@@ -149,11 +149,14 @@ export default function ListaOrdenesTrabajo() {
 
   const plantasLista = [
     ...new Set(
-      ordenes.map((o) => o.ingresoEquipo?.planta).filter(Boolean)
+      (filtros.empresa ? ordenes.filter((o) => o.empresa?._id === filtros.empresa) : ordenes)
+        .map((o) => o.planta)
+        .filter(Boolean)
     ),
   ].sort();
 
   const handleFiltro = (e) => setFiltros({ ...filtros, [e.target.name]: e.target.value });
+  const handleEmpresa = (e) => setFiltros({ ...filtros, empresa: e.target.value, planta: "" });
 
   const filtradas = ordenes.filter((o) => {
     const fecha = new Date(o.createdAt);
@@ -163,7 +166,7 @@ export default function ListaOrdenesTrabajo() {
       (!filtros.mes || fecha.getMonth() + 1 === parseInt(filtros.mes)) &&
       (!filtros.estado || o.estado === filtros.estado) &&
       (!filtros.empresa || o.empresa?._id === filtros.empresa) &&
-      (!filtros.planta || o.ingresoEquipo?.planta === filtros.planta) &&
+      (!filtros.planta || o.planta === filtros.planta) &&
       (!q ||
         o.titulo?.toLowerCase().includes(q) ||
         o.numeroOT?.toLowerCase().includes(q) ||
@@ -237,7 +240,7 @@ export default function ListaOrdenesTrabajo() {
       {/* Filtros */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-5 flex flex-wrap gap-3 items-center">
 
-<select name="empresa" value={filtros.empresa} onChange={handleFiltro} className={SELECT}>
+<select name="empresa" value={filtros.empresa} onChange={handleEmpresa} className={SELECT}>
           <option value="">Toda empresa</option>
           {empresasLista.map((e) => (
             <option key={e._id} value={e._id}>

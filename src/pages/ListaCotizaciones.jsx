@@ -226,12 +226,13 @@ export default function ListaCotizaciones() {
   ].sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
 
   const plantasLista = [...new Set(
-    [...otsPorCot.values()].flat()
-      .map((o) => o.ingresoEquipo?.planta)
+    (filtros.empresa ? filas.filter((c) => c.empresa?._id === filtros.empresa) : filas)
+      .map((c) => c.planta)
       .filter(Boolean)
   )].sort();
 
   const handleFiltro = (e) => setFiltros({ ...filtros, [e.target.name]: e.target.value });
+  const handleEmpresa = (e) => setFiltros({ ...filtros, empresa: e.target.value, planta: "" });
 
   const tieneOC = (c) =>
     ocPorCot.has(c._id) || (c.numeroDocumento != null && ocPorNumDoc.has(c.numeroDocumento));
@@ -241,7 +242,7 @@ export default function ListaCotizaciones() {
     const q = filtros.busqueda.toLowerCase();
     return (
       (!filtros.empresa || c.empresa?._id === filtros.empresa) &&
-      (!filtros.planta  || otsPorCot.get(c._id)?.some((o) => o.ingresoEquipo?.planta === filtros.planta)) &&
+      (!filtros.planta || c.planta === filtros.planta) &&
       (!filtros.ano || fecha.getFullYear() === parseInt(filtros.ano)) &&
       (!filtros.mes || fecha.getMonth() + 1 === parseInt(filtros.mes)) &&
       (!filtros.oc  || (filtros.oc === "con" ? tieneOC(c) : !tieneOC(c))) &&
@@ -335,7 +336,7 @@ export default function ListaCotizaciones() {
 
       {/* Filtros */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-5 flex flex-wrap gap-3 items-center">
-        <select name="empresa" value={filtros.empresa} onChange={handleFiltro} className={SELECT}>
+        <select name="empresa" value={filtros.empresa} onChange={handleEmpresa} className={SELECT}>
           <option value="">Toda empresa</option>
           {empresasLista.map((e) => (
             <option key={e._id} value={e._id}>
