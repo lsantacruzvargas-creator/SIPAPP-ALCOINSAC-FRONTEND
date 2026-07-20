@@ -160,7 +160,7 @@ function porFecha(arr, campoFecha, ano, mes) {
 
 // ── Dashboard principal ──────────────────────────────────────────────────────
 export default function Dashboard() {
-  const usuario = JSON.parse(localStorage.getItem("usuario") ?? "null");
+  const usuario = JSON.parse(sessionStorage.getItem("usuario") ?? "null");
   const [ots, setOts]     = useState([]);
   const [facts, setFacts] = useState([]);
   const [cots, setCots]   = useState([]);

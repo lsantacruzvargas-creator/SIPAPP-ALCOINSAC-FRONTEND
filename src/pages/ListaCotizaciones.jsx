@@ -274,6 +274,12 @@ export default function ListaCotizaciones() {
   // Cotizaciones (no pseudo-filas de OT) sin ninguna OT relacionada.
   const sinOT = filtradas.filter((c) => !c._esOT && !otsPorCot.get(c._id)?.length);
   const hayFiltro = Object.values(filtros).some(Boolean);
+  // Si hay una búsqueda de texto activa, no dejar que el selector de "vista"
+  // esconda una tabla donde SÍ cae el resultado (ej. buscar un N° OT que
+  // pertenece a una cotización "con OC" mientras la vista activa es
+  // "Pendientes") — las otras 3 páginas de lista siempre muestran todas sus
+  // categorías a la vez, así que en búsqueda esta página se comporta igual.
+  const vistaEfectiva = filtros.busqueda ? "todas" : vista;
 
   // Misma columnas que TablaCotizaciones — una hoja por cada tabla visible.
   const filaCotizacion = (c) => ({
@@ -396,7 +402,7 @@ export default function ListaCotizaciones() {
         </button>
       </div>
 
-      {(vista === "todas" || vista === "sinOT") && (
+      {(vistaEfectiva === "todas" || vistaEfectiva === "sinOT") && (
         <TablaCotizaciones
           titulo="Cotizaciones sin OT"
           acento="bg-indigo-500"
@@ -407,7 +413,7 @@ export default function ListaCotizaciones() {
         />
       )}
 
-      {(vista === "todas" || vista === "pendientes") && (
+      {(vistaEfectiva === "todas" || vistaEfectiva === "pendientes") && (
         <TablaCotizaciones
           titulo="Cotizaciones pendientes de OC"
           acento="bg-amber-500"
@@ -418,7 +424,7 @@ export default function ListaCotizaciones() {
         />
       )}
 
-      {(vista === "todas" || vista === "conOC") && (
+      {(vistaEfectiva === "todas" || vistaEfectiva === "conOC") && (
         <TablaCotizaciones
           titulo="Cotización con OC"
           acento="bg-emerald-500"
@@ -429,7 +435,7 @@ export default function ListaCotizaciones() {
         />
       )}
 
-      {(vista === "todas" || vista === "cerradas") && (
+      {(vistaEfectiva === "todas" || vistaEfectiva === "cerradas") && (
         <TablaCotizaciones
           titulo="Cotizaciones cerradas"
           acento="bg-gray-500"

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { getUsuario, logout, fetchAuth } from "../utils/fetchAuth.js";
 import PanelNotificaciones from "./PanelNotificaciones";
 
-const ROL_LABEL = { admin: "Admin", tecnico: "Técnico", almacenero: "Almacenero", asistente: "Asistente" };
+const ROL_LABEL = { admin: "Admin", tecnico: "Técnico", almacenero: "Almacenero", asistente: "Asistente", supervisor: "Supervisor" };
 
 const TEMAS = [
   { id: "claro",  icon: "☀️", title: "Tema claro" },
@@ -45,6 +45,7 @@ export default function Navbar() {
   const esAlmacenero = usuario?.rol === "almacenero";
   const esAdmin      = usuario?.rol === "admin";
   const esAsistente  = usuario?.rol === "asistente";
+  const esSupervisor = usuario?.rol === "supervisor";
   const esComercial  = ["admin", "asistente"].includes(usuario?.rol);
 
   const ir = (path) => { navigate(path); setMenuOpen(false); };
@@ -104,7 +105,7 @@ export default function Navbar() {
             {esComercial && (
               <button onClick={() => ir("/dashboard")} className={linkCls("/dashboard")}>Dashboard</button>
             )}
-            {(esComercial || esTecnico) && (
+            {(esComercial || esTecnico || esSupervisor) && (
               <button onClick={() => ir("/ordenes-trabajo")} className={linkCls("/ordenes-trabajo")}>OTs</button>
             )}
             {esComercial && (<>
@@ -217,7 +218,7 @@ export default function Navbar() {
           {esComercial && (
             <button onClick={() => ir("/dashboard")} className={linkMovil("/dashboard")}>Dashboard</button>
           )}
-          {(esComercial || esTecnico) && (
+          {(esComercial || esTecnico || esSupervisor) && (
             <button onClick={() => ir("/ordenes-trabajo")} className={linkMovil("/ordenes-trabajo")}>Órdenes de Trabajo</button>
           )}
           {esComercial && (<>

@@ -47,7 +47,12 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
     estado:             inicial.estado             || "pendiente",
   });
   const rolActual = getUsuario()?.rol;
-  const puedeEditar = ["admin", "asistente"].includes(rolActual);
+  // Supervisor edita los campos de la OT y los Informes Técnicos, pero no
+  // puede anularla (eso queda solo para admin/asistente). Igual que técnico,
+  // supervisor no ve el resto de la cadena (Cotización/OC/Factura).
+  const puedeEditarCampos = ["admin", "asistente", "supervisor"].includes(rolActual);
+  const puedeAnular = ["admin", "asistente"].includes(rolActual);
+  const esVistaLimitada = ["tecnico", "supervisor"].includes(rolActual);
   const [usuarios, setUsuarios]   = useState([]);
   const [empresas, setEmpresas]   = useState([]);
   const [nuevaEmpresaOpen, setNuevaEmpresaOpen] = useState(false);
@@ -195,8 +200,8 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               <p className="text-[10px] text-white/60 uppercase tracking-widest leading-none">Estado</p>
               <Chip className="mt-0.5 bg-white/20 text-white">{ot.estado}</Chip>
             </div>
-            {!ot.anulado && puedeEditar && <BotonAnular onAnular={anular} />}
-            {!ot.anulado && puedeEditar && (
+            {!ot.anulado && puedeAnular && <BotonAnular onAnular={anular} />}
+            {!ot.anulado && puedeEditarCampos && (
               <button onClick={guardar} disabled={guardando}
                 className="bg-white text-indigo-700 text-sm px-5 py-2 rounded-lg hover:bg-indigo-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
                 {guardando ? "Guardando…" : "Guardar cambios"}
@@ -218,7 +223,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
         <div className="max-w-6xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Datos editables */}
-          <fieldset disabled={ot.anulado || !puedeEditar} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
+          <fieldset disabled={ot.anulado || !puedeEditarCampos} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-5 rounded-full bg-indigo-500" />
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la orden de trabajo</h2>
@@ -382,7 +387,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Relaciones</h2>
             </div>
 
-            {rolActual !== "tecnico" && (
+            {!esVistaLimitada && (
               <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} numero={cot?.numeroCotizacion} vacio={!cot}
                 onClick={cot ? () => onNavegar?.({ tipo: "cotizacion", data: cot }) : undefined}
                 onCrear={!cot && !ot.anulado ? () => setCrearCotOpen(true) : undefined} crearLabel="Cotización">
@@ -410,7 +415,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               )}
             </TarjetaRelacion>
 
-            {rolActual !== "tecnico" && (
+            {!esVistaLimitada && (
               <>
                 <TarjetaRelacion tipo="oc" codigo={oc?.codigo} numero={oc?.numeroOrden} vacio={!oc}
                   onClick={oc ? () => onNavegar?.({ tipo: "oc", data: oc, extra: factura }) : undefined}
@@ -468,7 +473,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
           informe={verInforme}
           ordenTrabajo={ot}
           onClose={() => setVerInforme(null)}
-          onModificar={puedeEditar && !verInforme.anulado ? () => { setEditandoInforme(verInforme); setVerInforme(null); } : undefined}
+          onModificar={puedeEditarCampos && !verInforme.anulado ? () => { setEditandoInforme(verInforme); setVerInforme(null); } : undefined}
         />
       )}
 

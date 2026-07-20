@@ -22,9 +22,24 @@ function createWindow() {
     mainWindow.loadURL("https://alcoin-sac.com/#/login");
   }
 
-  // Cerrar sesión al cerrar la ventana (el JWT vive en localStorage)
-  mainWindow.on("close", () => {
-    mainWindow.webContents.executeJavaScript("localStorage.clear()").catch(() => {});
+  // Cerrar sesión al cerrar la ventana. El JWT/usuario ya viven en
+  // sessionStorage (se borra solo al destruirse el proceso), pero esto queda
+  // como respaldo explícito — y limpia cualquier token viejo que haya
+  // quedado en localStorage de una versión anterior de la app. Hay que
+  // esperar a que el script termine ANTES de destruir la ventana: si no,
+  // executeJavaScript queda corriendo en segundo plano y el proceso se
+  // destruye antes de que el borrado realmente ocurra.
+  let cerrandoConLimpieza = false;
+  mainWindow.on("close", (e) => {
+    if (cerrandoConLimpieza) return;
+    e.preventDefault();
+    mainWindow.webContents
+      .executeJavaScript("sessionStorage.clear(); localStorage.removeItem('token'); localStorage.removeItem('usuario');")
+      .catch(() => {})
+      .finally(() => {
+        cerrandoConLimpieza = true;
+        mainWindow.close();
+      });
   });
 }
 

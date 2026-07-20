@@ -25,10 +25,10 @@ function Layout({ children }) {
 }
 
 function HomeRedirect() {
-  const token = localStorage.getItem("token");
-  const usuario = JSON.parse(localStorage.getItem("usuario") || "null");
+  const token = sessionStorage.getItem("token");
+  const usuario = JSON.parse(sessionStorage.getItem("usuario") || "null");
   if (!token || !usuario) return <Navigate to="/login" replace />;
-  if (usuario.rol === "tecnico") return <Navigate to="/ordenes-trabajo" replace />;
+  if (["tecnico", "supervisor"].includes(usuario.rol)) return <Navigate to="/ordenes-trabajo" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -77,7 +77,7 @@ export default function App() {
       <Route
         path="/ordenes-trabajo"
         element={
-          <ProtectedRoute roles={["admin", "tecnico", "asistente"]}>
+          <ProtectedRoute roles={["admin", "tecnico", "asistente", "supervisor"]}>
             <Layout><ListaOrdenesTrabajo /></Layout>
           </ProtectedRoute>
         }
@@ -104,7 +104,7 @@ export default function App() {
       <Route
         path="/ingresos-equipo"
         element={
-          <ProtectedRoute roles={["admin", "tecnico", "asistente"]}>
+          <ProtectedRoute roles={["admin", "tecnico", "asistente", "supervisor"]}>
             <Layout><IngresoEquipos /></Layout>
           </ProtectedRoute>
         }

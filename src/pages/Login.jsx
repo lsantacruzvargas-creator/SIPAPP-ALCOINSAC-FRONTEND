@@ -24,8 +24,8 @@ export default function Login() {
       });
       const data = await res.json();
       if (!res.ok) return setError(data.mensaje || "Error al iniciar sesión");
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("usuario", JSON.stringify(data.usuario));
+      sessionStorage.setItem("token", data.token);
+      sessionStorage.setItem("usuario", JSON.stringify(data.usuario));
       navigate("/dashboard");
     } catch {
       setError("No se pudo conectar con el servidor");
