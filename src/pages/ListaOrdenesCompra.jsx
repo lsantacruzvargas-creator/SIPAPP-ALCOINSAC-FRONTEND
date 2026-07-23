@@ -64,7 +64,7 @@ function TablaOC({ titulo, acento, ordenes, otMap, factMap, factByOCMap, otNumer
               const factura = factByOCMap[o._id] || factMap[cotId];
               return (
                 <tr key={o._id}
-                  className={`hover:bg-blue-50/65 cursor-pointer transition-colors ${o.anulado ? "opacity-50" : ""}`}
+                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${o.anulado ? "opacity-50" : ""}`}
                   onClick={() => onSelect(o)}>
                   <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap">
                     {otNumeroMap[o.numeroDocumento] || <span className="text-gray-300">—</span>}

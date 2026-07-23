@@ -1,5 +1,5 @@
 import { imgUrl } from "../utils/fetchAuth";
-import { tipoInformePorValor } from "../utils/informesTecnicos";
+import { tipoInformePorValor, claveChecklist } from "../utils/informesTecnicos";
 import { exportarInformeTecnicoExcel } from "../utils/informeTecnicoExcel";
 
 function Campo({ label, valor }) {
@@ -20,8 +20,8 @@ function BloqueSeccion({ seccion, campos }) {
     );
   }
   if (seccion.tipo === "checklist") {
-    const claveHechoPor = `${seccion.titulo}__hechoPor`;
-    const claveFecha = `${seccion.titulo}__fecha`;
+    const claveHechoPor = `${claveChecklist(seccion.titulo)}__hechoPor`;
+    const claveFecha = `${claveChecklist(seccion.titulo)}__fecha`;
     return (
       <div className="space-y-3">
         {seccion.hechoPor && (
@@ -50,8 +50,8 @@ function BloqueSeccion({ seccion, campos }) {
   }
   if (seccion.tipo === "tabla") {
     const valores = campos[seccion.clave] || {};
-    const claveHechoPor = `${seccion.titulo}__hechoPor`;
-    const claveFecha = `${seccion.titulo}__fecha`;
+    const claveHechoPor = `${claveChecklist(seccion.titulo)}__hechoPor`;
+    const claveFecha = `${claveChecklist(seccion.titulo)}__fecha`;
     return (
       <div className="space-y-3">
         {seccion.hechoPor && (

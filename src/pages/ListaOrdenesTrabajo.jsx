@@ -66,7 +66,7 @@ function TablaOTs({ titulo, acento, ordenes, onSelect, vacioMsg }) {
                 ordenes.map((o) => (
                   <tr
                     key={o._id}
-                    className={`hover:bg-indigo-50/65 cursor-pointer transition-colors ${o.anulado ? "opacity-50" : ""}`}
+                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${o.anulado ? "opacity-50" : ""}`}
                     onClick={() => onSelect(o)}
                   >
                     <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">

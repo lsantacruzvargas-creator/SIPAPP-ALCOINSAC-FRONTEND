@@ -76,7 +76,7 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
               cotizaciones.map((c) => (
                 <tr
                   key={c._id}
-                  className={`hover:bg-sky-50/65 cursor-pointer transition-colors ${c.anulado ? "opacity-50" : ""} ${c._esOT ? "bg-indigo-50/30" : ""}`}
+                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${c.anulado ? "opacity-50" : ""} ${c._esOT ? "bg-indigo-50/30" : ""}`}
                   onClick={() => onSelect(c)}
                 >
                   <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">

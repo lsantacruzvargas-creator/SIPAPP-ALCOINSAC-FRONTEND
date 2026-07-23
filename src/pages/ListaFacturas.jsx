@@ -104,7 +104,7 @@ function TablaFacturas({ titulo, acento, facturas, onSelect, handlePagoCheck, va
                 <>
                 {facturas.map(f => (
                   <tr key={f._id}
-                    className={`hover:bg-emerald-50/65 cursor-pointer transition-colors ${f.anulado ? "opacity-50" : ""}`}
+                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${f.anulado ? "opacity-50" : ""}`}
                     onClick={() => onSelect(f)}>
                     <td className="px-3 py-3.5 text-gray-600 whitespace-nowrap">
                       {f._numeroOT || <span className="text-gray-300">—</span>}

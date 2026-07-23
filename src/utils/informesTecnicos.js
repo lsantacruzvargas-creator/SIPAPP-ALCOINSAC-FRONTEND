@@ -12,6 +12,15 @@
 //   tabla      — grilla de lecturas numéricas (filas x columnas)
 //   evidencias — grupos de fotos con leyenda propia (cámara o galería)
 
+// Algunos títulos de checklist traen numeración con punto (ej. "2. Revisión
+// mecánica") — MongoDB descarta en silencio cualquier clave de objeto que
+// contenga un "." (se probó contra la base real: los ítems del checklist
+// sin punto en el título se guardan bien, pero "hechoPor"/"fecha" del
+// encabezado, que usan el título completo como parte de la clave, nunca
+// llegaban a persistirse). Se usa esta función en vez del título crudo en
+// todos los lugares que arman la clave de `campos` para ese par.
+export const claveChecklist = (titulo) => titulo.replace(/\./g, "");
+
 const CAMPOS_HEADER = [
   { clave: "cliente", label: "Cliente" },
   { clave: "equipo", label: "Equipo" },
@@ -122,12 +131,12 @@ export const TIPOS_INFORME = [
       },
       { tipo: "campos", titulo: "1. Recepción — Conclusión", campos: [{ clave: "conclusionRecepcion", label: "Conclusión" }] },
       {
-        tipo: "campos", titulo: "Datos de bobina (recepción)",
+        tipo: "campos", titulo: "Evaluación de núcleo magnético",
         campos: [
-          { clave: "alambreAwgRec", label: "Alambre (AWG) / Peso (kg)" }, { clave: "conexionRec", label: "Conexión" },
-          { clave: "papelNomexRec", label: "Papel Nomex / Peso (g)" }, { clave: "gruposBobinasRec", label: "Grupos de Bobinas" },
-          { clave: "paseRec", label: "Pase" }, { clave: "bobinasGrupoRec", label: "Bobinas por grupos" },
-          { clave: "vueltasRec", label: "Vueltas" }, { clave: "nSalidasRec", label: "N. Salidas" },
+          { clave: "tiempoPrueba", label: "Tiempo de prueba" }, { clave: "comentarios", label: "Comentarios" },
+          { clave: "voltajeInducido", label: "Voltaje inducido" },
+          { clave: "areaCalentamiento", label: "% Area calentamiento" },
+          { clave: "kGauss", label: "kGauss" },
         ],
       },
       {

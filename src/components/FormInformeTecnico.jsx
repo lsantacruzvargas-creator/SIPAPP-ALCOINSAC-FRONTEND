@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { fetchAuth, uploadAuth, imgUrl, getUsuario } from "../utils/fetchAuth";
-import { tipoInformePorValor } from "../utils/informesTecnicos";
+import { tipoInformePorValor, claveChecklist } from "../utils/informesTecnicos";
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 w-full transition";
 
@@ -29,8 +29,8 @@ function SeccionCampos({ seccion, campos, onCampo }) {
 }
 
 function SeccionChecklist({ seccion, campos, onCampo }) {
-  const claveHechoPor = `${seccion.titulo}__hechoPor`;
-  const claveFecha = `${seccion.titulo}__fecha`;
+  const claveHechoPor = `${claveChecklist(seccion.titulo)}__hechoPor`;
+  const claveFecha = `${claveChecklist(seccion.titulo)}__fecha`;
   return (
     <Seccion titulo={seccion.titulo}>
       {seccion.hechoPor && (
@@ -84,8 +84,8 @@ function SeccionTabla({ seccion, campos, onCampo, onCampos }) {
   const valores = campos[seccion.clave] || {};
   const set = (filaClave, columnaClave, valor) =>
     onCampos(seccion.clave, { ...valores, [`${filaClave}__${columnaClave}`]: valor });
-  const claveHechoPor = `${seccion.titulo}__hechoPor`;
-  const claveFecha = `${seccion.titulo}__fecha`;
+  const claveHechoPor = `${claveChecklist(seccion.titulo)}__hechoPor`;
+  const claveFecha = `${claveChecklist(seccion.titulo)}__fecha`;
   return (
     <Seccion titulo={seccion.titulo}>
       {seccion.hechoPor && (

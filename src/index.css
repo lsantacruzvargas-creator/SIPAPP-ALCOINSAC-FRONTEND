@@ -74,7 +74,9 @@
 }
 
 [data-theme="oscuro"] .bg-white,
-[data-theme="sepia"] .bg-white {
+[data-theme="sepia"] .bg-white,
+[data-theme="oscuro"] .card,
+[data-theme="sepia"] .card {
   background-color: var(--bg-surface) !important;
 }
 [data-theme="oscuro"] .bg-gray-50,
@@ -111,9 +113,11 @@
 [data-theme="oscuro"] .border-gray-100,
 [data-theme="oscuro"] .border-gray-200,
 [data-theme="oscuro"] .border-gray-300,
+[data-theme="oscuro"] .card,
 [data-theme="sepia"] .border-gray-100,
 [data-theme="sepia"] .border-gray-200,
-[data-theme="sepia"] .border-gray-300 {
+[data-theme="sepia"] .border-gray-300,
+[data-theme="sepia"] .card {
   border-color: var(--border-soft) !important;
 }
 
