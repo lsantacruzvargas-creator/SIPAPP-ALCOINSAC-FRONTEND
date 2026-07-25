@@ -131,7 +131,7 @@ export function TarjetaRelacion({ tipo, codigo, numero, children, vacio, actual,
       role={clickable ? "button" : undefined}
       tabIndex={clickable ? 0 : undefined}
       onKeyDown={clickable ? (e) => { if (e.key === "Enter") onClick(e); } : undefined}
-      className={`relative border ${t.border} ${t.soft} rounded-2xl p-5 min-h-[112px] hover:shadow-md hover:-translate-y-0.5 transition
+      className={`tarjeta-relacion-color relative border ${t.border} ${t.soft} rounded-2xl p-5 min-h-[112px] hover:shadow-md hover:-translate-y-0.5 transition
         ${clickable ? "cursor-pointer" : ""} ${cargando ? "opacity-60 pointer-events-none" : ""}`}>
       {clickable && (
         <span className="absolute top-4 right-4 text-gray-300">→</span>
