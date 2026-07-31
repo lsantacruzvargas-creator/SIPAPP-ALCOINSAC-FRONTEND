@@ -112,6 +112,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
 
   const empresaSel = empresas.find(e => e._id === form.empresa);
   const plantasEmpresa = empresaSel?.plantas ?? [];
+  const plantaSel = plantasEmpresa.find(p => p.nombre === form.planta);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -126,7 +127,8 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
     setGuardando(true); setError("");
     const body = {
       ...form,
-      contactoTelefono: empresaSel?.contactos?.find(c => c.nombre === form.contactoNombre)?.telefono || "",
+      contactoNombre: plantaSel?.contactoNombre || "",
+      contactoTelefono: plantaSel?.contactoTelefono || "",
     };
     if (!body.empresa) delete body.empresa;
     if (!body.fechaRecibida) delete body.fechaRecibida;
@@ -330,12 +332,9 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Persona de contacto</label>
-                <select name="contactoNombre" value={form.contactoNombre} onChange={handleChange} className={INP}>
-                  <option value="">Sin seleccionar…</option>
-                  {empresaSel?.contactos?.map((c, i) => (
-                    <option key={i} value={c.nombre}>{c.nombre} — {c.telefono || "—"}</option>
-                  ))}
-                </select>
+                <p className={`${INP} bg-gray-50 text-gray-500`}>
+                  {plantaSel ? `${plantaSel.contactoNombre} — ${plantaSel.contactoTelefono || "—"}` : "Selecciona una planta"}
+                </p>
               </div>
             </div>
 

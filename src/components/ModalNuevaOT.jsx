@@ -10,7 +10,6 @@ const FORM_VACIO = {
   codigoSap: "",
   empresa: "",
   planta: "",
-  contactoNombre: "",
   titulo: "",
   condicion: "",
   encargado: "",
@@ -42,6 +41,7 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
   }, []);
 
   const empresaSel = empresas.find((e) => e._id === form.empresa);
+  const plantaSel = empresaSel?.plantas?.find((p) => p.nombre === form.planta);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -57,8 +57,8 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
       codigoSap: form.codigoSap,
       empresa: form.empresa || undefined,
       planta: form.planta,
-      contactoNombre: form.contactoNombre,
-      contactoTelefono: empresaSel?.contactos?.find((c) => c.nombre === form.contactoNombre)?.telefono || "",
+      contactoNombre: plantaSel?.contactoNombre || "",
+      contactoTelefono: plantaSel?.contactoTelefono || "",
       titulo: form.titulo,
       condicion: form.condicion,
       encargado: form.encargado,
@@ -150,12 +150,9 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
             </div>
             <div>
               <label className="text-xs text-gray-500 block mb-1">Persona de contacto</label>
-              <select name="contactoNombre" value={form.contactoNombre} onChange={handleChange} className={INP}>
-                <option value="">Sin seleccionar…</option>
-                {empresaSel?.contactos?.map((c, i) => (
-                  <option key={i} value={c.nombre}>{c.nombre} — {c.telefono || "—"}</option>
-                ))}
-              </select>
+              <p className={`${INP} bg-gray-50 text-gray-500`}>
+                {plantaSel ? `${plantaSel.contactoNombre} — ${plantaSel.contactoTelefono || "—"}` : "Selecciona una planta"}
+              </p>
             </div>
           </div>
 
