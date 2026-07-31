@@ -94,9 +94,8 @@ export default function Navbar() {
             className="flex items-center gap-2.5 cursor-pointer shrink-0"
             onClick={() => ir(esTecnico ? "/ordenes-trabajo" : esAlmacenero ? "/almacen" : "/dashboard")}
           >
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-              <span className="text-white text-sm font-bold">A</span>
-            </div>
+            <img src={`${import.meta.env.BASE_URL}assets/logos/logo_recortado.jpg`} alt="Alcoinsac"
+              className="w-9 h-9 rounded-xl object-contain shrink-0" />
             <span className="font-bold text-gray-800 text-base tracking-tight hidden sm:block">Alcoinsac</span>
           </div>
 
