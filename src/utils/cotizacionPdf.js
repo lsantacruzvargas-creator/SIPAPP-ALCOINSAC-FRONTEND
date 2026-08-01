@@ -14,14 +14,16 @@ function cargarImagen(url) {
 }
 
 // Logos de marcas representadas — van siempre al pie de cada cotización.
-// Faltan ACHEM y 华海 (Huahai) de la imagen de referencia: no se subieron
-// todavía a Frontend/public/assets/logos/. Agregarlos aquí con el mismo
-// formato en cuanto estén disponibles.
+// El orden del array define el orden izquierda→derecha en el pie (ver más
+// abajo): ACHEM va primero (extrema izquierda) y HUAHAI al final (extrema
+// derecha), como en la imagen de referencia.
 const LOGOS_MARCAS = [
+  { src: "/assets/logos/logo_achem.png",     format: "PNG" },
   { src: "/assets/logos/logo_Gruetzner.png", format: "PNG" },
   { src: "/assets/logos/logo_KOGANEI.jpg",   format: "JPEG" },
   { src: "/assets/logos/logo_beko.png",      format: "PNG" },
   { src: "/assets/logos/logo_kcpc.jpg",      format: "JPEG" }, // XCPC
+  { src: "/assets/logos/logo_huahai.png",    format: "PNG" },
 ];
 
 export const exportarCotizacionPdf = async (cotizacion) => {
@@ -159,7 +161,21 @@ export const exportarCotizacionPdf = async (cotizacion) => {
         ],
     theme: "grid",
     margin: { left: 10, right: 10 },
-    styles: { fontSize: 9, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fillColor: false },
+    // Subtotal/IGV/Total (foot) solo en la última página — por defecto
+    // autoTable repite el foot en cada página cuando la tabla se parte.
+    showFoot: "lastPage",
+    // Como las filas del cuerpo ya no tienen borde inferior propio (ver
+    // "styles" más abajo), sin esto la tabla queda "abierta" al final de
+    // cada página cuando se corta en varias — tableLineWidth dibuja un
+    // rectángulo de cierre alrededor de todo el contenido de esa página en
+    // cada salto (y otra vez al final de la última página).
+    tableLineWidth: 0.1,
+    tableLineColor: [0, 0, 0],
+    // El marco exterior de la tabla se arma con el borde completo de
+    // encabezado y pie (top+bottom+left+right) — solo las FILAS DEL CUERPO
+    // pierden las líneas horizontales entre sí (top/bottom en 0, se
+    // mantienen las verticales left/right para separar columnas).
+    styles: { fontSize: 9, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: { top: 0, bottom: 0, left: 0.1, right: 0.1 }, fillColor: false },
     headStyles: { fontSize: 8, fontStyle: "bold", textColor: [0, 0, 0], fillColor: false, lineColor: [0, 0, 0], lineWidth: 0.1 },
     footStyles: { halign: "right", fontStyle: "bold", textColor: [0, 0, 0], fillColor: false, lineColor: [0, 0, 0], lineWidth: 0.1 },
     alternateRowStyles: { fillColor: false },
