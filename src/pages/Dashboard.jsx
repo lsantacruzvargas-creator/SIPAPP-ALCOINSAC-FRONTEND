@@ -47,43 +47,71 @@ function KpiCard({ label, value, sub, color }) {
   );
 }
 
-// ── Tarjeta contraste OC vs Cotizaciones ─────────────────────────────────────
-function KpiContrasteCard({ totalCots, totalOCs }) {
-  const navigate = useNavigate();
-  const sinOC = totalCots - totalOCs;
-  const pct = totalCots > 0 ? Math.round((totalOCs / totalCots) * 100) : 0;
+// ── Fila de conversión (una etapa de la cadena de documentos) ───────────────
+// `enlazados` = cuántos elementos de origen SÍ tienen al menos un documento
+// destino apuntándolos (por relación real, no una resta de conteos — dos
+// listas de tamaños distintos no implican que la diferencia sean los "sin
+// vincular"; con más OCs que cotizaciones esa resta daba negativo).
+function FilaConversion({ labelOrigen, labelDestino, totalOrigen, enlazados, colorBarra, colorDestino, onClickSinVincular }) {
+  const sinVincular = totalOrigen - enlazados;
+  const pct = totalOrigen > 0 ? Math.round((enlazados / totalOrigen) * 100) : 0;
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-5 flex flex-col gap-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-        Conversión Cotización → OC
-      </p>
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
-          <p className="text-xs text-gray-400 mb-0.5">Cotizaciones</p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-800">{totalCots}</p>
+          <p className="text-xs text-gray-400 mb-0.5">{labelOrigen}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-800">{totalOrigen}</p>
         </div>
         <div className="text-2xl font-light text-gray-300 pb-1">→</div>
         <div className="min-w-0">
-          <p className="text-xs text-gray-400 mb-0.5">Órdenes de Compra</p>
-          <p className="text-2xl sm:text-3xl font-bold text-indigo-700">{totalOCs}</p>
+          <p className="text-xs text-gray-400 mb-0.5">{labelDestino}</p>
+          <p className={`text-2xl sm:text-3xl font-bold ${colorDestino}`}>{enlazados}</p>
         </div>
         <div
-          className="min-w-0 cursor-pointer hover:opacity-70 transition"
-          onClick={() => navigate("/cotizaciones", { state: { filtroOC: "sin" } })}
+          className={`min-w-0 ${onClickSinVincular ? "cursor-pointer hover:opacity-70 transition" : ""}`}
+          onClick={onClickSinVincular}
         >
-          <p className="text-xs text-gray-400 mb-0.5">Cotizaciones sin OC</p>
-          <p className="text-2xl sm:text-3xl font-bold text-red-500">{sinOC}</p>
+          <p className="text-xs text-gray-400 mb-0.5">{labelOrigen} sin {labelDestino.toLowerCase()}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-red-500">{sinVincular}</p>
         </div>
       </div>
       <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-        <div
-          className="h-2.5 rounded-full bg-indigo-500 transition-all duration-500"
-          style={{ width: `${pct}%` }}
-        />
+        <div className={`h-2.5 rounded-full ${colorBarra} transition-all duration-500`} style={{ width: `${pct}%` }} />
       </div>
       <p className="text-xs text-gray-400">
-        {totalOCs} de {totalCots} cotizaciones tienen orden de compra emitida
+        {enlazados} de {totalOrigen} {labelOrigen.toLowerCase()} tienen {labelDestino.toLowerCase()} vinculada
       </p>
+    </div>
+  );
+}
+
+// ── Tarjeta de conversión: Cotización → OC → Factura ─────────────────────────
+function KpiContrasteCard({ cots, ocs, facts }) {
+  const navigate = useNavigate();
+
+  const cotizacionesConOC = new Set(ocs.map((oc) => oc.cotizacion?._id).filter(Boolean));
+  const cotsConOC = cots.filter((c) => cotizacionesConOC.has(c._id)).length;
+
+  const ocsConFactura = new Set(facts.map((f) => f.ordenCompra?._id).filter(Boolean));
+  const ocsConFacturaCount = ocs.filter((oc) => ocsConFactura.has(oc._id)).length;
+
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-5 flex flex-col gap-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+        Conversión de documentos
+      </p>
+      <FilaConversion
+        labelOrigen="Cotizaciones" labelDestino="Órdenes de Compra"
+        totalOrigen={cots.length} enlazados={cotsConOC}
+        colorBarra="bg-indigo-500" colorDestino="text-indigo-700"
+        onClickSinVincular={() => navigate("/cotizaciones", { state: { filtroOC: "sin" } })}
+      />
+      <div className="border-t border-gray-100" />
+      <FilaConversion
+        labelOrigen="Órdenes de Compra" labelDestino="Facturas"
+        totalOrigen={ocs.length} enlazados={ocsConFacturaCount}
+        colorBarra="bg-emerald-500" colorDestino="text-emerald-700"
+      />
     </div>
   );
 }
@@ -209,12 +237,31 @@ export default function Dashboard() {
   const datosFact = contarPor(factsFiltradas, "estadoPago");
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
-  const otsActivas     = otsFiltradas.filter((o) => o.estado !== "completado").length;
-  const otsCompletadas = otsFiltradas.filter((o) => o.estado === "completado").length;
-  const factAbiertas   = factsFiltradas.filter((f) => f.estadoPago !== "pagado").length;
-  const totalFacturado = factsFiltradas.reduce((s, f) => s + (f.monto ?? 0), 0);
-  const totalPagado    = factsFiltradas.reduce((s, f) => s + (Number(f.montoPagado) || 0), 0);
-  const porCobrar      = totalFacturado - totalPagado;
+  // Brechas en la cadena Cotización → OT → OC → Factura: cada una se
+  // calcula siguiendo el campo de relación real del documento (no una
+  // resta de totales), igual que "Cotizaciones sin OC" más abajo.
+  const otsSinCotizacion = otsFiltradas.filter((o) => !o.cotizacion).length;
+
+  const cotizacionesConOC = new Set(ocsFiltradas.map((oc) => oc.cotizacion?._id).filter(Boolean));
+  const otsSinOC = otsFiltradas.filter((o) => !o.cotizacion || !cotizacionesConOC.has(o.cotizacion._id)).length;
+
+  const ocsConFactura = new Set(factsFiltradas.map((f) => f.ordenCompra?._id).filter(Boolean));
+  const ocSinFactura = ocsFiltradas.filter((oc) => !ocsConFactura.has(oc._id)).length;
+
+  const facturasSinPago = factsFiltradas.filter((f) => f.estadoPago === "sin pago").length;
+
+  // El modelo Factura no tiene campo `monto` (siempre daba 0) y `montoPagado`
+  // es un registro de pago parcial, no el total de la factura — el monto
+  // real de una factura es `totalAPagar` (con `total` como respaldo, mismo
+  // criterio que usa DetalleFactura.jsx). "Total pagado" suma las facturas
+  // ya marcadas como pagadas; "Por cobrar" suma las que todavía no.
+  const montoFactura = (f) => Number(f.totalAPagar ?? f.total) || 0;
+  const totalPagado = factsFiltradas
+    .filter((f) => f.estadoPago === "pagado")
+    .reduce((s, f) => s + montoFactura(f), 0);
+  const porCobrar = factsFiltradas
+    .filter((f) => f.estadoPago !== "pagado")
+    .reduce((s, f) => s + montoFactura(f), 0);
 
   const fmt = (n) => `S/ ${Number(n).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`;
 
@@ -255,20 +302,20 @@ export default function Dashboard() {
 
       {/* KPIs — fila 1 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KpiCard label="Cotizaciones"      value={cotsFiltradas.length} sub="total registradas"                    color="gray"  />
-        <KpiCard label="OTs activas"       value={otsActivas}           sub={`${otsCompletadas} completadas`}      color="blue"  />
-        <KpiCard label="Facturas abiertas" value={factAbiertas}         sub={`${factsFiltradas.length} en total`}  color="amber" />
-        <KpiCard label="Total facturado"   value={fmt(totalFacturado)}  sub="suma de montos de facturas"           color="gray"  />
+        <KpiCard label="OTs sin cotización" value={otsSinCotizacion} sub={`${otsFiltradas.length} OTs en total`} color="amber" />
+        <KpiCard label="OTs sin Orden de Compra"         value={otsSinOC}         sub={`${otsFiltradas.length} OTs en total`} color="blue"  />
+        <KpiCard label="OC sin Factura"     value={ocSinFactura}     sub={`${ocsFiltradas.length} OC en total`}  color="amber" />
+        <KpiCard label="Facturas sin pago"  value={facturasSinPago}  sub={`${factsFiltradas.length} facturas en total`} color="red" />
       </div>
 
       {/* KPIs — fila 2 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <KpiCard label="Total pagado" value={fmt(totalPagado)} sub="suma de pagos registrados" color="green" />
-        <KpiCard label="Por cobrar"   value={fmt(porCobrar)}   sub="facturado menos pagado"    color="red"   />
+        <KpiCard label="Total pagado" value={fmt(totalPagado)} sub="suma de facturas pagadas"      color="green" />
+        <KpiCard label="Por cobrar"   value={fmt(porCobrar)}   sub="suma de facturas sin pagar"    color="red"   />
       </div>
 
       {/* Contraste OC vs Cotizaciones */}
-      <KpiContrasteCard totalCots={cotsFiltradas.length} totalOCs={ocsFiltradas.length} />
+      <KpiContrasteCard cots={cotsFiltradas} ocs={ocsFiltradas} facts={factsFiltradas} />
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
