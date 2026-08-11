@@ -4,7 +4,7 @@ import { fetchAuth } from "../utils/fetchAuth";
 // Panel lateral para elegir ítems del catálogo de servicios. El padre decide
 // si el ítem se fusiona con la última fila (mismo grupo) o abre una nueva —
 // este componente solo informa qué grupo/texto se clickeó.
-export default function SelectorCatalogoServicios({ onSeleccionar, onClose }) {
+export default function SelectorCatalogoServicios({ onSeleccionar, onSeleccionarGrupo, onClose }) {
   const [busqueda, setBusqueda] = useState("");
   const [abiertos, setAbiertos] = useState(() => new Set());
   const [catalogo, setCatalogo] = useState([]);
@@ -47,7 +47,7 @@ export default function SelectorCatalogoServicios({ onSeleccionar, onClose }) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <h4 className="font-semibold text-gray-800">Catálogo de servicios</h4>
-              <p className="text-xs text-gray-500 mt-0.5">Click en un ítem para agregarlo a la cotización</p>
+              <p className="text-xs text-gray-500 mt-0.5">Click en el título de un grupo para agregarlo completo, o en un ítem puntual</p>
             </div>
             <button type="button" onClick={onClose}
               className="text-gray-400 hover:text-gray-700 text-xl leading-none shrink-0">✕</button>
@@ -73,19 +73,29 @@ export default function SelectorCatalogoServicios({ onSeleccionar, onClose }) {
               const abierto = q ? true : abiertos.has(g.grupo);
               return (
                 <div key={g.grupo} className="mt-1">
-                  <button
-                    type="button"
-                    onClick={() => toggleGrupo(g.grupo)}
-                    className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 text-left"
-                  >
-                    <span className="text-xs font-bold uppercase tracking-wide text-gray-700">
-                      {g.grupo} <span className="text-gray-400 font-normal normal-case">({g.items.length})</span>
-                    </span>
-                    <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${abierto ? "rotate-90" : ""}`}
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
-                  </button>
+                  <div className="w-full flex items-center gap-1 rounded-lg hover:bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={() => onSeleccionarGrupo?.(g.grupo, g.items)}
+                      title="Agregar el grupo completo con todos sus ítems"
+                      className="flex-1 min-w-0 text-left px-3 py-2 rounded-lg hover:bg-sky-50 transition"
+                    >
+                      <span className="text-xs font-bold uppercase tracking-wide text-gray-700">
+                        {g.grupo} <span className="text-gray-400 font-normal normal-case">({g.items.length})</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleGrupo(g.grupo)}
+                      title={abierto ? "Ocultar ítems" : "Ver ítems del grupo"}
+                      className="shrink-0 p-2 rounded-lg hover:bg-gray-100 transition"
+                    >
+                      <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${abierto ? "rotate-90" : ""}`}
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    </button>
+                  </div>
                   {abierto && (
                     <div className="pl-3 pb-1">
                       {g.items.map((texto, i) => (
@@ -109,7 +119,7 @@ export default function SelectorCatalogoServicios({ onSeleccionar, onClose }) {
 
         <div className="px-5 py-3 border-t border-gray-100 text-center shrink-0">
           <p className="text-[11px] text-gray-400">
-            Grupo → columna <b>Item</b> · ítem elegido → columna <b>Descripción</b>
+            Click en el título → agrega el grupo completo · click en un ítem → lo agrega solo a él
           </p>
         </div>
       </div>

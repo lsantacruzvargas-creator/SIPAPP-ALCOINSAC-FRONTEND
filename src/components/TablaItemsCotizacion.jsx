@@ -51,11 +51,21 @@ export default function TablaItemsCotizacion({
   // Si hay una fila puntual como destino (catalogoTarget), el ítem elegido se
   // agrega como descripción de esa fila sin importar su grupo. Si no, se
   // fusiona con la última fila cuando comparte grupo padre, o crea fila nueva.
-  const agregarDesdeCatalogo = (grupo, texto) => {
+  const agregarDesdeCatalogo = (grupo, texto) => agregarTextosDesdeCatalogo(grupo, [texto]);
+
+  // Click en el título del grupo (no en un ítem puntual): carga la fila con
+  // TODOS los sub-ítems del grupo de una vez, en vez de tener que clickear
+  // uno por uno. Misma lógica de fusión/fila nueva/fila destino que un ítem
+  // individual — "+ agregar sub ítem" sigue disponible después para sumar
+  // más manualmente.
+  const agregarGrupoCompleto = (grupo, textos) => agregarTextosDesdeCatalogo(grupo, textos);
+
+  const agregarTextosDesdeCatalogo = (grupo, textos) => {
+    const nuevosSubItems = textos.map((texto) => ({ _subKey: Date.now() + Math.random(), texto }));
     if (catalogoTarget) {
       onItemsChange(items.map(it =>
         it._key === catalogoTarget
-          ? { ...it, subItems: [...(it.subItems || []), { _subKey: Date.now() + Math.random(), texto }] }
+          ? { ...it, subItems: [...(it.subItems || []), ...nuevosSubItems] }
           : it
       ));
       return;
@@ -64,13 +74,12 @@ export default function TablaItemsCotizacion({
     if (ultimo && ultimo.descripcion === grupo) {
       onItemsChange(items.map((it, i) => (
         i === items.length - 1
-          ? { ...it, subItems: [...(it.subItems || []), { _subKey: Date.now() + Math.random(), texto }] }
+          ? { ...it, subItems: [...(it.subItems || []), ...nuevosSubItems] }
           : it
       )));
       return;
     }
-    onItemsChange([...items, { ...itemVacioServicio(), descripcion: grupo,
-      subItems: [{ _subKey: Date.now() + Math.random(), texto }] }]);
+    onItemsChange([...items, { ...itemVacioServicio(), descripcion: grupo, subItems: nuevosSubItems }]);
   };
 
   const abrirCatalogo = (targetKey = null) => {
@@ -258,6 +267,7 @@ export default function TablaItemsCotizacion({
       {catalogoOpen && (
         <SelectorCatalogoServicios
           onSeleccionar={agregarDesdeCatalogo}
+          onSeleccionarGrupo={agregarGrupoCompleto}
           onClose={cerrarCatalogo}
         />
       )}
