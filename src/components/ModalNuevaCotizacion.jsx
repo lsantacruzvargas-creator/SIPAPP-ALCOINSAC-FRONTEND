@@ -74,23 +74,23 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
     setError(""); setGuardando(true);
 
     const payload = {
-      tipo:               form.tipo,
-      condicionPago:      form.condicionPago,
-      titulo:             form.titulo,
-      numeroCotizacion:   form.numeroCotizacion,
-      atencion:           form.atencion,
-      encargado:          form.encargado,
-      planta:             form.planta,
-      plazoEntrega:       form.plazoEntrega,
-      lugarEntrega:       form.lugarEntrega,
-      validezOferta:      form.validezOferta,
-      subtotal:           totalesMostrados.subtotal,
-      igv:                totalesMostrados.igv,
-      total:              totalesMostrados.total,
-      numeroGuiaEmision:  form.numeroGuiaEmision,
+      tipo: form.tipo,
+      condicionPago: form.condicionPago,
+      titulo: form.titulo,
+      numeroCotizacion: form.numeroCotizacion,
+      atencion: form.atencion,
+      encargado: form.encargado,
+      planta: form.planta,
+      plazoEntrega: form.plazoEntrega,
+      lugarEntrega: form.lugarEntrega,
+      validezOferta: form.validezOferta,
+      subtotal: totalesMostrados.subtotal,
+      igv: totalesMostrados.igv,
+      total: totalesMostrados.total,
+      numeroGuiaEmision: form.numeroGuiaEmision,
       numeroGuiaRemision: form.numeroGuiaRemision,
-      codigoSap:          form.codigoSap,
-      fechaSalida:        form.fechaSalida || null,
+      codigoSap: form.codigoSap,
+      fechaSalida: form.fechaSalida || null,
       items: items.map(i => {
         const it = {
           descripcion: i.descripcion, cantidad: i.cantidad, precio: i.precio,
@@ -169,6 +169,17 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la cotización</h2>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">N° Cotización</label>
+                <input name="numeroCotizacion" value={form.numeroCotizacion} onChange={handleChange} placeholder="—" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Fecha</label>
+                <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className={INP} />
+              </div>
+            </div>
+
             <div>
               <label className="text-xs text-gray-500 block mb-1">Empresa</label>
               <select name="empresa" value={form.empresa} onChange={handleChange} className={INP}>
@@ -179,14 +190,24 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">N° Cotización</label>
-                <input name="numeroCotizacion" value={form.numeroCotizacion} onChange={handleChange} placeholder="—" className={INP} />
+                <label className="text-xs text-gray-500 block mb-1">Planta</label>
+                {plantasEmpresa.length > 0 ? (
+                  <select name="planta" value={form.planta} onChange={handleChange} className={INP}>
+                    <option value="">— Seleccionar planta —</option>
+                    {plantasEmpresa.map((p, i) => <option key={i} value={p.nombre}>{p.nombre}</option>)}
+                  </select>
+                ) : (
+                  <input name="planta" value={form.planta} onChange={handleChange} placeholder="Planta o sede" className={INP} />
+                )}
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4" hidden>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Fecha</label>
-                <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className={INP} />
+                <label className="text-xs text-gray-500 block mb-1">Encargado</label>
+                <input name="encargado" value={form.encargado} onChange={handleChange} placeholder="Nombre del encargado" className={INP} />
               </div>
             </div>
 
@@ -201,24 +222,6 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
                   <option value="venta">Venta</option>
                   <option value="servicio">Servicio</option>
                 </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Encargado</label>
-                <input name="encargado" value={form.encargado} onChange={handleChange} placeholder="Nombre del encargado" className={INP} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Planta</label>
-                {plantasEmpresa.length > 0 ? (
-                  <select name="planta" value={form.planta} onChange={handleChange} className={INP}>
-                    <option value="">— Seleccionar planta —</option>
-                    {plantasEmpresa.map((p, i) => <option key={i} value={p.nombre}>{p.nombre}</option>)}
-                  </select>
-                ) : (
-                  <input name="planta" value={form.planta} onChange={handleChange} placeholder="Planta o sede" className={INP} />
-                )}
               </div>
             </div>
 
@@ -244,28 +247,34 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
                 <label className="text-xs text-gray-500 block mb-1">Forma de pago</label>
                 <input name="condicionPago" value={form.condicionPago} onChange={handleChange} placeholder="—" className={INP} />
               </div>
-              <div>
+              <div hidden>
                 <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
                 <input type="date" name="fechaRecibida" value={form.fechaRecibida} onChange={handleChange} className={INP} />
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Plazo de entrega</label>
                 <input name="plazoEntrega" value={form.plazoEntrega} onChange={handleChange} placeholder="Ej. 2 días de recibida su O/C." className={INP} />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Lugar de entrega</label>
                 <input name="lugarEntrega" value={form.lugarEntrega} onChange={handleChange} placeholder="Ej. Planta Chilca" className={INP} />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Validez de la oferta</label>
                 <input name="validezOferta" value={form.validezOferta} onChange={handleChange} placeholder="Ej. 15 días" className={INP} />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4" hidden>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">N° guía de llegada</label>
                 <input name="numeroGuiaEmision" value={form.numeroGuiaEmision} onChange={handleChange} placeholder="—" className={INP} />
@@ -281,7 +290,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
                 <label className="text-xs text-gray-500 block mb-1">Código SAP</label>
                 <input name="codigoSap" value={form.codigoSap} onChange={handleChange} placeholder="—" className={INP} />
               </div>
-              <div>
+              <div hidden>
                 <label className="text-xs text-gray-500 block mb-1">Fecha de salida</label>
                 <input type="date" name="fechaSalida" value={form.fechaSalida} onChange={handleChange} className={INP} />
               </div>
