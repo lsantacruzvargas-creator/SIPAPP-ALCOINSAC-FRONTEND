@@ -23,35 +23,35 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   const [cot, setCot] = useState(inicial);
   const subtotalInicial = inicial.subtotal ?? 0;
   const [form, setForm] = useState({
-    subtotal:           subtotalInicial > 0 ? String(subtotalInicial) : "",
-    empresa:            inicial.empresa?._id     || "",
-    tipo:               inicial.tipo             || "venta",
-    condicionPago:      inicial.condicionPago    || "",
-    plazoEntrega:       inicial.plazoEntrega     || "",
-    lugarEntrega:       inicial.lugarEntrega     || "",
-    validezOferta:      inicial.validezOferta    || "",
-    fecha:              inicial.fecha ? new Date(inicial.fecha).toISOString().split("T")[0] : "",
-    fechaRecibida:      inicial.fechaRecibida ? new Date(inicial.fechaRecibida).toISOString().split("T")[0] : "",
-    titulo:             inicial.titulo           || "",
-    numeroCotizacion:   inicial.numeroCotizacion || "",
-    atencion:           inicial.atencion         || "",
-    encargado:          inicial.encargado        || "",
-    planta:             inicial.planta           || "",
-    numeroGuiaEmision:  inicial.numeroGuiaEmision  || "",
+    subtotal: subtotalInicial > 0 ? String(subtotalInicial) : "",
+    empresa: inicial.empresa?._id || "",
+    tipo: inicial.tipo || "venta",
+    condicionPago: inicial.condicionPago || "",
+    plazoEntrega: inicial.plazoEntrega || "",
+    lugarEntrega: inicial.lugarEntrega || "",
+    validezOferta: inicial.validezOferta || "",
+    fecha: inicial.fecha ? new Date(inicial.fecha).toISOString().split("T")[0] : "",
+    fechaRecibida: inicial.fechaRecibida ? new Date(inicial.fechaRecibida).toISOString().split("T")[0] : "",
+    titulo: inicial.titulo || "",
+    numeroCotizacion: inicial.numeroCotizacion || "",
+    atencion: inicial.atencion || "",
+    encargado: inicial.encargado || "",
+    planta: inicial.planta || "",
+    numeroGuiaEmision: inicial.numeroGuiaEmision || "",
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
-    codigoSap:          inicial.codigoSap          || "",
-    fechaSalida:        inicial.fechaSalida ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
+    codigoSap: inicial.codigoSap || "",
+    fechaSalida: inicial.fechaSalida ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
   });
   const [calc, setCalc] = useState(() => calcular(subtotalInicial));
   const [items, setItems] = useState(() => (inicial.items || []).map(itemDesdeDb));
   const [intentoGuardar, setIntentoGuardar] = useState(false);
   const [empresas, setEmpresas] = useState([]);
-  const [ots, setOts]           = useState([]);
+  const [ots, setOts] = useState([]);
   const [informes, setInformes] = useState([]);
-  const [oc, setOc]             = useState(null);
-  const [factura, setFactura]   = useState(null);
+  const [oc, setOc] = useState(null);
+  const [factura, setFactura] = useState(null);
   const [guardando, setGuardando] = useState(false);
-  const [error, setError]         = useState("");
+  const [error, setError] = useState("");
   const [crearOTOpen, setCrearOTOpen] = useState(false);
   const [crearOCOpen, setCrearOCOpen] = useState(false);
   const [buscadorOTOpen, setBuscadorOTOpen] = useState(false);
@@ -143,26 +143,26 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   // depender de que se haya guardado antes (Guardar cambios cierra el modal).
   const datosParaPdf = () => ({
     ...cot,
-    empresa:            empresaSel || cot.empresa,
-    tipo:               form.tipo,
-    numeroCotizacion:   form.numeroCotizacion,
-    atencion:           form.atencion,
-    fecha:              form.fecha,
-    titulo:             form.titulo,
-    condicionPago:      form.condicionPago,
-    plazoEntrega:       form.plazoEntrega,
-    lugarEntrega:       form.lugarEntrega,
-    validezOferta:      form.validezOferta,
-    subtotal:           totalesMostrados.subtotal,
-    igv:                totalesMostrados.igv,
-    total:              totalesMostrados.total,
+    empresa: empresaSel || cot.empresa,
+    tipo: form.tipo,
+    numeroCotizacion: form.numeroCotizacion,
+    atencion: form.atencion,
+    fecha: form.fecha,
+    titulo: form.titulo,
+    condicionPago: form.condicionPago,
+    plazoEntrega: form.plazoEntrega,
+    lugarEntrega: form.lugarEntrega,
+    validezOferta: form.validezOferta,
+    subtotal: totalesMostrados.subtotal,
+    igv: totalesMostrados.igv,
+    total: totalesMostrados.total,
     items: items.map(i => ({
       descripcion: i.descripcion,
-      cantidad:    i.cantidad,
-      precio:      i.precio,
-      moneda:      i.moneda,
-      subtotal:    calcSubtotal(i),
-      subItems:    (i.subItems || []).map(s => s.texto).filter(Boolean),
+      cantidad: i.cantidad,
+      precio: i.precio,
+      moneda: i.moneda,
+      subtotal: calcSubtotal(i),
+      subItems: (i.subItems || []).map(s => s.texto).filter(Boolean),
     })),
   });
 
@@ -178,30 +178,30 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     }
     setError("");
     const payload = {
-      tipo:               form.tipo,
-      condicionPago:      form.condicionPago,
-      titulo:             form.titulo || "por definir",
-      numeroCotizacion:   form.numeroCotizacion,
-      atencion:           form.atencion,
-      encargado:          form.encargado,
-      planta:             form.planta,
-      plazoEntrega:       form.plazoEntrega,
-      lugarEntrega:       form.lugarEntrega,
-      validezOferta:      form.validezOferta,
-      subtotal:           totalesMostrados.subtotal,
-      igv:                totalesMostrados.igv,
-      total:              totalesMostrados.total,
-      numeroGuiaEmision:  form.numeroGuiaEmision,
+      tipo: form.tipo,
+      condicionPago: form.condicionPago,
+      titulo: form.titulo || "por definir",
+      numeroCotizacion: form.numeroCotizacion,
+      atencion: form.atencion,
+      encargado: form.encargado,
+      planta: form.planta,
+      plazoEntrega: form.plazoEntrega,
+      lugarEntrega: form.lugarEntrega,
+      validezOferta: form.validezOferta,
+      subtotal: totalesMostrados.subtotal,
+      igv: totalesMostrados.igv,
+      total: totalesMostrados.total,
+      numeroGuiaEmision: form.numeroGuiaEmision,
       numeroGuiaRemision: form.numeroGuiaRemision,
-      codigoSap:          form.codigoSap,
-      fechaSalida:        form.fechaSalida || null,
+      codigoSap: form.codigoSap,
+      fechaSalida: form.fechaSalida || null,
       items: items.map(i => {
         const it = {
           descripcion: i.descripcion,
-          cantidad:    i.cantidad,
-          precio:      i.precio,
-          moneda:      i.moneda,
-          subtotal:    calcSubtotal(i),
+          cantidad: i.cantidad,
+          precio: i.precio,
+          moneda: i.moneda,
+          subtotal: calcSubtotal(i),
         };
         if (i.fechaEntrega) it.fechaEntrega = i.fechaEntrega;
         if (i.subItems?.length > 0) it.subItems = i.subItems.map(s => s.texto).filter(Boolean);
@@ -253,11 +253,11 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   const ultimo = informes[informes.length - 1];
 
   const pasos = [
-    { tipo: "cotizacion", activo: true,               codigo: cot.codigo },
-    { tipo: "ot",         activo: ots.length > 0,      codigo: ots.length > 1 ? `${ots.length} OTs` : ots[0]?.codigo },
-    { tipo: "informe",    activo: informes.length > 0, codigo: informes.length ? `${informes.length} av.` : "" },
-    { tipo: "oc",         activo: !!oc,               codigo: oc?.codigo },
-    { tipo: "factura",    activo: !!factura,          codigo: factura?.codigo },
+    { tipo: "cotizacion", activo: true, codigo: cot.codigo },
+    { tipo: "ot", activo: ots.length > 0, codigo: ots.length > 1 ? `${ots.length} OTs` : ots[0]?.codigo },
+    { tipo: "informe", activo: informes.length > 0, codigo: informes.length ? `${informes.length} av.` : "" },
+    { tipo: "oc", activo: !!oc, codigo: oc?.codigo },
+    { tipo: "factura", activo: !!factura, codigo: factura?.codigo },
   ];
 
   return (
@@ -325,18 +325,6 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               <BannerAnulado motivo={cot.motivoAnulacion} por={cot.anuladoPor} fecha={cot.fechaAnulacion} />
             )}
 
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Empresa</label>
-              <select name="empresa" value={form.empresa} onChange={handleChange} className={INP}>
-                <option value="">— Sin empresa —</option>
-                {empresas.map(e => (
-                  <option key={e._id} value={e._id}>
-                    {e.alias ? `${e.alias} — ` : ""}{e.razonSocial}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">N° Cotización</label>
@@ -349,23 +337,21 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Atención</label>
-                <input name="atencion" value={form.atencion} onChange={handleChange}
-                  placeholder="Ej. Área de Compras" className={INP} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Tipo</label>
-                <select name="tipo" value={form.tipo} onChange={handleChange} className={INP}>
-                  <option value="venta">Venta</option>
-                  <option value="servicio">Servicio</option>
-                </select>
-              </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Empresa</label>
+              <select name="empresa" value={form.empresa} onChange={handleChange} className={INP}>
+                <option value="">— Sin empresa —</option>
+                {empresas.map(e => (
+                  <option key={e._id} value={e._id}>
+                    {e.alias ? `${e.alias} — ` : ""}{e.razonSocial}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div hidden>
                 <label className="text-xs text-gray-500 block mb-1">Encargado</label>
                 <input name="encargado" value={form.encargado} onChange={handleChange}
                   placeholder="Nombre del encargado" className={INP} />
@@ -385,6 +371,28 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
                 )}
               </div>
             </div>
+
+
+
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Atención</label>
+                <input name="atencion" value={form.atencion} onChange={handleChange}
+                  placeholder="Ej. Área de Compras" className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Tipo</label>
+                <select name="tipo" value={form.tipo} onChange={handleChange} className={INP}>
+                  <option value="venta">Venta</option>
+                  <option value="servicio">Servicio</option>
+                </select>
+              </div>
+            </div>
+
+
+
+
 
             {plantaSel?.contactoNombre && (
               <div className="bg-sky-50/50 border border-sky-100 rounded-xl p-4 space-y-1.5">
@@ -410,23 +418,29 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
                 <input name="condicionPago" value={form.condicionPago} onChange={handleChange}
                   placeholder="—" className={INP} />
               </div>
-              <div>
+              <div hidden>
                 <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
                 <input type="date" name="fechaRecibida" value={form.fechaRecibida} onChange={handleChange} className={INP} />
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Plazo de entrega</label>
                 <input name="plazoEntrega" value={form.plazoEntrega} onChange={handleChange}
                   placeholder="Ej. 2 días de recibida su O/C." className={INP} />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Lugar de entrega</label>
                 <input name="lugarEntrega" value={form.lugarEntrega} onChange={handleChange}
                   placeholder="Ej. Planta Chilca" className={INP} />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Validez de la oferta</label>
                 <input name="validezOferta" value={form.validezOferta} onChange={handleChange}
@@ -434,13 +448,15 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               </div>
             </div>
 
+
+
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div hidden>
                 <label className="text-xs text-gray-500 block mb-1">N° guía de llegada</label>
                 <input name="numeroGuiaEmision" value={form.numeroGuiaEmision} onChange={handleChange}
                   placeholder="—" className={INP} />
               </div>
-              <div>
+              <div hidden>
                 <label className="text-xs text-gray-500 block mb-1">N° guía de salida</label>
                 <input name="numeroGuiaRemision" value={form.numeroGuiaRemision} onChange={handleChange}
                   placeholder="—" className={INP} />
@@ -453,7 +469,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
                 <input name="codigoSap" value={form.codigoSap} onChange={handleChange}
                   placeholder="—" className={INP} />
               </div>
-              <div>
+              <div hidden>
                 <label className="text-xs text-gray-500 block mb-1">Fecha de salida</label>
                 <input type="date" name="fechaSalida" value={form.fechaSalida} onChange={handleChange} className={INP} />
               </div>
