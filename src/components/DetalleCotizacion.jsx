@@ -117,7 +117,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   // exactamente con lo ya guardado antes de generar OT por índice.
   const generarOTSeleccionados = async () => {
     setGenerandoOT(true);
-    const guardada = await persistir();
+    const guardada = await guardarCotizacion();
     if (!guardada) { setGenerandoOT(false); return; }
     const indices = [...seleccionados].sort((a, b) => a - b);
     let ultimaCot = guardada;
@@ -166,11 +166,13 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     })),
   });
 
-  // Persiste el estado actual y devuelve la cotización guardada (o null si
-  // falló) — usado tanto por "Guardar cambios" como por "Generar OT", ya que
-  // esta última necesita que los índices de `items` coincidan exactamente
-  // con lo persistido en el backend antes de generar OT por índice.
-  const persistir = async () => {
+  // Guarda el estado actual y devuelve la cotización guardada (o null si
+  // falló), sin notificar al padre ni cerrar el modal — usado tanto por
+  // "Guardar cambios" (a través de `persistir`) como por "Generar OT", ya
+  // que esta última necesita que los índices de `items` coincidan
+  // exactamente con lo persistido en el backend antes de generar OT por
+  // índice, pero debe seguir generando las OT en el mismo modal abierto.
+  const guardarCotizacion = async () => {
     setIntentoGuardar(true);
     if (items.some(itemInvalido)) {
       setError("Hay ítems con campos obligatorios sin completar (descripción, cantidad o precio). Corrígelos antes de guardar — resaltados en rojo.");
@@ -222,11 +224,18 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
       setCot(actualizada);
       setItems((actualizada.items || []).map(itemDesdeDb));
       setIntentoGuardar(false);
-      onGuardada?.(actualizada);
       return actualizada;
     }
     setError("Error al guardar los cambios.");
     return null;
+  };
+
+  // Guardado explícito del botón "Guardar cambios": además de persistir,
+  // notifica al padre y cierra el modal (comportamiento esperado solo aquí).
+  const persistir = async () => {
+    const actualizada = await guardarCotizacion();
+    if (actualizada) onGuardada?.(actualizada);
+    return actualizada;
   };
 
   const guardar = async () => {
@@ -581,7 +590,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
             onToggleSeleccion={toggleSeleccion}
             onGenerarOT={generarOTSeleccionados}
             generando={generandoOT}
-            onVerOT={(o) => onNavegar?.({ tipo: "ot", data: o })}
+            onVerOT={(o) => onNavegar?.({ tipo: "ot", data: ots.find(x => x._id === o._id) || o })}
           />
         </div>
       </div>
