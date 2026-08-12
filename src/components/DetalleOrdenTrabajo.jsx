@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import ModalOrdenCompra from "./ModalOrdenCompra";
 import ModalCrearCotizacion from "./ModalCrearCotizacion";
-import ModalEmpresa from "./ModalEmpresa";
+import SelectorEmpresas from "./SelectorEmpresas";
 import ModalSeleccionarTipoInforme from "./ModalSeleccionarTipoInforme";
 import FormInformeTecnico from "./FormInformeTecnico";
 import VistaInformeTecnico from "./VistaInformeTecnico";
@@ -55,7 +55,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
   const esVistaLimitada = ["tecnico", "supervisor"].includes(rolActual);
   const [usuarios, setUsuarios]   = useState([]);
   const [empresas, setEmpresas]   = useState([]);
-  const [nuevaEmpresaOpen, setNuevaEmpresaOpen] = useState(false);
+  const [empresasOpen, setEmpresasOpen] = useState(false);
   const [cot, setCot]             = useState(ot.cotizacion || null);
   const [oc, setOc]               = useState(null);
   const [factura, setFactura]     = useState(null);
@@ -281,9 +281,9 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
                       </option>
                     ))}
                   </select>
-                  <button type="button" onClick={() => setNuevaEmpresaOpen(true)}
+                  <button type="button" onClick={() => setEmpresasOpen(true)}
                     className="shrink-0 text-xs border border-gray-300 px-3 rounded-lg hover:bg-gray-50 transition">
-                    + Nueva
+                    Empresas
                   </button>
                 </div>
               </div>
@@ -486,13 +486,17 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
         />
       )}
 
-      {nuevaEmpresaOpen && (
-        <ModalEmpresa
-          onClose={() => setNuevaEmpresaOpen(false)}
-          onGuardada={async (nueva) => {
+      {empresasOpen && (
+        <SelectorEmpresas
+          empresas={empresas}
+          onClose={() => setEmpresasOpen(false)}
+          onSeleccionar={(e) => {
+            setForm(f => ({ ...f, empresa: e._id, planta: "" }));
+            setEmpresasOpen(false);
+          }}
+          onCambio={async (guardada, { esNueva }) => {
             await cargarEmpresas();
-            setForm(f => ({ ...f, empresa: nueva._id }));
-            setNuevaEmpresaOpen(false);
+            if (esNueva) setForm(f => ({ ...f, empresa: guardada._id, planta: "" }));
           }}
         />
       )}
