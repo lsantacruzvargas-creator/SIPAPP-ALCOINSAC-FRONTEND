@@ -121,10 +121,11 @@ function SeccionUbicaciones() {
 function SeccionMateriales() {
   const [lista, setLista] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
-  const [form, setForm] = useState({ nombre: "", descripcion: "", unidad: "und", stockMinimo: 0, ubicacion: "" });
+  const [form, setForm] = useState({ nombre: "", descripcion: "", unidad: "und", stockMinimo: 0, ubicacion: "", tipoMaterial: "" });
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const [error, setError] = useState("");
 
   const cargar = useCallback(async () => {
     const [rm, ru] = await Promise.all([
@@ -147,17 +148,22 @@ function SeccionMateriales() {
       unidad: m.unidad,
       stockMinimo: m.stockMinimo,
       ubicacion: m.ubicacion?._id || "",
+      tipoMaterial: m.tipoMaterial || "",
     });
+    setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const cancelar = () => {
     setEditando(null);
-    setForm({ nombre: "", descripcion: "", unidad: "und", stockMinimo: 0, ubicacion: "" });
+    setForm({ nombre: "", descripcion: "", unidad: "und", stockMinimo: 0, ubicacion: "", tipoMaterial: "" });
+    setError("");
   };
 
   const guardar = async () => {
     if (!form.nombre.trim()) return;
+    if (!form.tipoMaterial) { setError("Selecciona si es Repuesto o Consumible."); return; }
+    setError("");
     setGuardando(true);
     const metodo = editando ? "PUT" : "POST";
     const url = editando ? `/materiales/${editando}` : "/materiales";
@@ -169,6 +175,9 @@ function SeccionMateriales() {
     if (r.ok) {
       await cargar();
       cancelar();
+    } else {
+      const d = await r.json().catch(() => ({}));
+      setError(d.mensaje || "Error al guardar el material.");
     }
     setGuardando(false);
   };
@@ -220,7 +229,16 @@ function SeccionMateriales() {
               {ubicaciones.map((u) => <option key={u._id} value={u._id}>{u.nombre}</option>)}
             </select>
           </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Centro de costo *</label>
+            <select name="tipoMaterial" value={form.tipoMaterial} onChange={handleChange} className={`w-full ${INP}`}>
+              <option value="">Seleccionar…</option>
+              <option value="repuesto">Repuesto</option>
+              <option value="consumible">Consumible</option>
+            </select>
+          </div>
         </div>
+        {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
         <div className="flex gap-2 mt-4">
           {editando && (
             <button onClick={cancelar}
@@ -228,7 +246,7 @@ function SeccionMateriales() {
               Cancelar
             </button>
           )}
-          <button onClick={guardar} disabled={guardando || !form.nombre.trim()}
+          <button onClick={guardar} disabled={guardando || !form.nombre.trim() || !form.tipoMaterial}
             className="text-sm bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition font-medium">
             {guardando ? "Guardando…" : editando ? "Actualizar" : "Crear material"}
           </button>
@@ -249,13 +267,14 @@ function SeccionMateriales() {
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Unidad</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Ubicación</th>
+              <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Centro de costo</th>
               <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Stock</th>
               <th className="px-5 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {filtrados.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-10 text-gray-300 text-sm">Sin materiales</td></tr>
+              <tr><td colSpan={7} className="text-center py-10 text-gray-300 text-sm">Sin materiales</td></tr>
             )}
             {filtrados.map((m) => (
               <tr key={m._id} className="hover:bg-gray-50/50 transition">
@@ -266,6 +285,15 @@ function SeccionMateriales() {
                 </td>
                 <td className="px-5 py-3 text-gray-500 hidden md:table-cell">{m.unidad}</td>
                 <td className="px-5 py-3 text-gray-500 hidden md:table-cell">{m.ubicacion?.nombre || "—"}</td>
+                <td className="px-5 py-3 text-center">
+                  {m.tipoMaterial ? (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${m.tipoMaterial === "repuesto" ? "bg-indigo-100 text-indigo-700" : "bg-cyan-100 text-cyan-700"}`}>
+                      {m.tipoMaterial}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-300">—</span>
+                  )}
+                </td>
                 <td className="px-5 py-3 text-center">
                   <div className="flex flex-col items-center gap-0.5">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badgeStock(m)}`}>
@@ -281,6 +309,177 @@ function SeccionMateriales() {
                 <td className="px-5 py-3 text-right">
                   <button onClick={() => iniciarEdicion(m)}
                     className="text-xs text-blue-500 hover:text-blue-700 transition">Editar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sección Categorías de Material ─────────────────────────────────────────
+
+const TIPOS_CAMPO = [
+  { id: "texto", label: "Texto" },
+  { id: "numero", label: "Número" },
+  { id: "select", label: "Lista de opciones" },
+];
+
+const slug = (s) => s.trim().toLowerCase()
+  .normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
+const CAMPO_VACIO = { nombre: "", clave: "", tipo: "texto", opciones: "", requerido: false };
+
+function SeccionCategorias() {
+  const [lista, setLista] = useState([]);
+  const [nombre, setNombre] = useState("");
+  const [campos, setCampos] = useState([]);
+  const [editando, setEditando] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+
+  const cargar = useCallback(async () => {
+    const r = await fetchAuth("/categorias-material");
+    if (r.ok) setLista(await r.json());
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const cancelar = () => { setEditando(null); setNombre(""); setCampos([]); setError(""); };
+
+  const iniciarEdicion = (c) => {
+    setEditando(c._id);
+    setNombre(c.nombre);
+    setCampos(c.campos.map((cp) => ({ ...cp, opciones: (cp.opciones || []).join(", ") })));
+  };
+
+  const agregarCampo = () => setCampos((prev) => [...prev, { ...CAMPO_VACIO }]);
+  const quitarCampo = (i) => setCampos((prev) => prev.filter((_, idx) => idx !== i));
+  // `clave` no tiene input propio en la UI — siempre se deriva de `nombre`.
+  // Antes solo se generaba en la primera pulsación (`!c.clave`) y luego
+  // quedaba congelada con el slug de un solo carácter: dos campos que
+  // empiezan con la misma letra (ej. "Altura" y "Ancho") terminaban con la
+  // misma clave ("a") y compartían la misma entrada en `valores`, por lo que
+  // escribir en uno se reflejaba en el otro. Ahora se recalcula siempre.
+  const cambiarCampo = (i, patch) => setCampos((prev) => prev.map((c, idx) => idx === i
+    ? { ...c, ...patch, ...(patch.nombre !== undefined ? { clave: slug(patch.nombre) } : {}) }
+    : c));
+
+  const guardar = async () => {
+    if (!nombre.trim()) { setError("El nombre de la categoría es obligatorio."); return; }
+    for (const c of campos) {
+      if (!c.nombre.trim() || !c.clave.trim()) { setError("Todos los campos necesitan nombre."); return; }
+    }
+    setGuardando(true);
+    setError("");
+    const body = {
+      nombre: nombre.trim(),
+      campos: campos.map((c) => ({
+        nombre: c.nombre.trim(),
+        clave: c.clave.trim(),
+        tipo: c.tipo,
+        requerido: !!c.requerido,
+        opciones: c.tipo === "select" ? c.opciones.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      })),
+    };
+    const metodo = editando ? "PUT" : "POST";
+    const url = editando ? `/categorias-material/${editando}` : "/categorias-material";
+    const r = await fetchAuth(url, { method: metodo, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (r.ok) {
+      await cargar();
+      cancelar();
+    } else {
+      const d = await r.json();
+      setError(d.mensaje || "Error al guardar la categoría");
+    }
+    setGuardando(false);
+  };
+
+  const eliminar = async (c) => {
+    if (!window.confirm(`¿Desactivar la categoría "${c.nombre}"?`)) return;
+    const r = await fetchAuth(`/categorias-material/${c._id}`, { method: "DELETE" });
+    if (r.ok) await cargar();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
+          {editando ? "Editar categoría" : "Nueva categoría de material"}
+        </p>
+        {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mb-4">{error}</p>}
+
+        <div className="mb-4">
+          <label className="text-xs text-gray-500 block mb-1">Nombre *</label>
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)}
+            className={`w-full max-w-sm ${INP}`} placeholder="Ej: Repuestos eléctricos" />
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500">Campos del formulario de solicitud de compra</p>
+          {campos.map((c, i) => (
+            <div key={i} className="grid grid-cols-1 md:grid-cols-[2fr_1fr_2fr_auto_auto] gap-2 items-center bg-gray-50 rounded-lg p-2">
+              <input value={c.nombre} onChange={(e) => cambiarCampo(i, { nombre: e.target.value })}
+                className={INP} placeholder="Nombre del campo" />
+              <select value={c.tipo} onChange={(e) => cambiarCampo(i, { tipo: e.target.value })} className={INP}>
+                {TIPOS_CAMPO.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+              {c.tipo === "select" ? (
+                <input value={c.opciones} onChange={(e) => cambiarCampo(i, { opciones: e.target.value })}
+                  className={INP} placeholder="Opciones separadas por coma" />
+              ) : <span />}
+              <label className="flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
+                <input type="checkbox" checked={c.requerido} onChange={(e) => cambiarCampo(i, { requerido: e.target.checked })} />
+                Requerido
+              </label>
+              <button onClick={() => quitarCampo(i)} className="text-gray-300 hover:text-red-500 transition">✕</button>
+            </div>
+          ))}
+          <button onClick={agregarCampo}
+            className="text-xs border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition font-medium">
+            + Agregar campo
+          </button>
+        </div>
+
+        <div className="flex gap-2 mt-5">
+          {editando && (
+            <button onClick={cancelar}
+              className="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition">
+              Cancelar
+            </button>
+          )}
+          <button onClick={guardar} disabled={guardando || !nombre.trim()}
+            className="text-sm bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition font-medium">
+            {guardando ? "Guardando…" : editando ? "Actualizar" : "Crear categoría"}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Campos</th>
+              <th className="px-5 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {lista.length === 0 && (
+              <tr><td colSpan={3} className="text-center py-10 text-gray-300 text-sm">Sin categorías registradas</td></tr>
+            )}
+            {lista.map((c) => (
+              <tr key={c._id} className="hover:bg-gray-50/50 transition">
+                <td className="px-5 py-3 font-medium text-gray-800">{c.nombre}</td>
+                <td className="px-5 py-3 text-gray-500 text-xs">
+                  {c.campos.length === 0 ? "—" : c.campos.map((cp) => cp.nombre).join(", ")}
+                </td>
+                <td className="px-5 py-3 text-right space-x-3">
+                  <button onClick={() => iniciarEdicion(c)} className="text-xs text-blue-500 hover:text-blue-700 transition">Editar</button>
+                  <button onClick={() => eliminar(c)} className="text-xs text-gray-400 hover:text-red-500 transition">Desactivar</button>
                 </td>
               </tr>
             ))}
@@ -307,8 +506,26 @@ function ModalIngreso({ materiales, onClose, onGuardado }) {
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [rqPendiente, setRqPendiente] = useState(null);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  // Si este material tiene una solicitud de compra vinculada y pendiente, se
+  // avisa acá — pero el ingreso por sí solo NO la resuelve: el almacenero
+  // todavía debe "Atender" el ítem desde Requerimientos (crea el egreso real
+  // hacia la OT que lo pidió) una vez que este stock esté disponible.
+  useEffect(() => {
+    if (!form.material) { setRqPendiente(null); return; }
+    fetchAuth("/requerimientos").then((r) => r.ok ? r.json() : []).then((lista) => {
+      for (const req of lista) {
+        const item = req.items.find((it) =>
+          it.esSolicitudCompra && it.estado === "pendiente" &&
+          (it.materialAsociado?._id || it.materialAsociado) === form.material);
+        if (item) { setRqPendiente({ requerimientoId: req._id, itemId: item._id, codigo: req.codigo, categoria: item.categoriaNombre }); return; }
+      }
+      setRqPendiente(null);
+    });
+  }, [form.material]);
 
   const guardar = async () => {
     if (!form.material || !form.cantidad || !form.precioUnitario) {
@@ -322,7 +539,8 @@ function ModalIngreso({ materiales, onClose, onGuardado }) {
       body: JSON.stringify({ ...form, tipo: "ingreso" }),
     });
     if (r.ok) {
-      onGuardado(await r.json());
+      const movimiento = await r.json();
+      onGuardado(movimiento);
     } else {
       const d = await r.json();
       setError(d.mensaje || "Error al guardar");
@@ -391,6 +609,14 @@ function ModalIngreso({ materiales, onClose, onGuardado }) {
                 className={`w-full ${INP}`} placeholder="Opcional" />
             </div>
           </div>
+
+          {rqPendiente && (
+            <div className="bg-blue-50 rounded-xl px-4 py-3 text-sm">
+              <span className="text-blue-700">
+                Este material abastece la solicitud de compra <strong>{rqPendiente.codigo}</strong> ({rqPendiente.categoria}) — despáchala desde Requerimientos ("Atender") una vez guardado este ingreso.
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 justify-end px-6 py-4 border-t border-gray-100">
@@ -617,12 +843,17 @@ function SeccionMovimientos() {
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Lote / Origen</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Detalle</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">OT</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">RQ</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Solicitante</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cant. Req.</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cant. Atendida</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {movimientos.length === 0 && (
-                <tr><td colSpan={9} className="text-center py-10 text-gray-300 text-sm">Sin movimientos</td></tr>
+                <tr><td colSpan={14} className="text-center py-10 text-gray-300 text-sm">Sin movimientos</td></tr>
               )}
               {movimientos.map((mv) => (
                 <tr key={mv._id} className="hover:bg-gray-50/50 transition">
@@ -652,11 +883,14 @@ function SeccionMovimientos() {
                     {mv.tipo === "ingreso" ? (
                       <span>{mv.proveedor || ""}  {mv.guiaProveedor ? `G: ${mv.guiaProveedor}` : ""} {mv.ordenCompra ? `OC: ${mv.ordenCompra}` : ""}</span>
                     ) : (
-                      mv.ordenTrabajo ? (
-                        <span className="font-mono text-blue-600">{mv.ordenTrabajo.codigo}</span>
-                      ) : mv.notas || "—"
+                      mv.notas || "—"
                     )}
                   </td>
+                  <td className="px-4 py-3 text-xs font-mono text-blue-600">{mv.ordenTrabajo?.numeroOT || "—"}</td>
+                  <td className="px-4 py-3 text-xs font-mono text-orange-600">{mv.requerimiento?.codigo || "—"}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{mv.requerimiento?.solicitadoPor || "—"}</td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-500 font-mono">{mv.cantidadRequerida ?? "—"}</td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-700 font-mono">{mv.requerimiento ? mv.cantidad : "—"}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">{fmtFecha(mv.fecha)}</td>
                 </tr>
               ))}
@@ -681,13 +915,14 @@ const TABS = [
   { id: "ubicaciones", label: "Ubicaciones" },
   { id: "materiales", label: "Materiales (SKU)" },
   { id: "movimientos", label: "Movimientos" },
+  { id: "categorias", label: "Categorías de compra" },
 ];
 
 export default function Almacen() {
   const [tab, setTab] = useState("materiales");
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-[80vw] mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-xl font-bold text-gray-800">Almacén</h1>
         <p className="text-sm text-gray-400 mt-0.5">Gestión de ubicaciones, materiales e inventario</p>
@@ -713,6 +948,7 @@ export default function Almacen() {
       {tab === "ubicaciones" && <SeccionUbicaciones />}
       {tab === "materiales" && <SeccionMateriales />}
       {tab === "movimientos" && <SeccionMovimientos />}
+      {tab === "categorias" && <SeccionCategorias />}
     </div>
   );
 }

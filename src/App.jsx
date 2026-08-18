@@ -13,6 +13,9 @@ import IngresoEquipos from "./pages/IngresoEquipos";
 import Usuarios from "./pages/Usuarios";
 import CatalogoServicios from "./pages/CatalogoServicios";
 import Almacen from "./pages/Almacen";
+import Inventario from "./pages/Inventario";
+import Requerimientos from "./pages/Requerimientos";
+import Reportes from "./pages/Reportes";
 import NotFound from "./pages/NotFound";
 
 function Layout({ children }) {
@@ -133,6 +136,33 @@ export default function App() {
         element={
           <ProtectedRoute roles={["admin", "almacenero", "asistente"]}>
             <Layout><Almacen /></Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/inventario"
+        element={
+          <ProtectedRoute roles={["admin", "almacenero", "tecnico", "supervisor"]}>
+            <Layout><Inventario /></Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/requerimientos"
+        element={
+          <ProtectedRoute roles={["admin", "almacenero"]}>
+            <Layout><Requerimientos /></Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/reportes"
+        element={
+          <ProtectedRoute roles={["admin", "almacenero", "asistente"]}>
+            <Layout><Reportes /></Layout>
           </ProtectedRoute>
         }
       />

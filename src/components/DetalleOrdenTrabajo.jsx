@@ -3,6 +3,7 @@ import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import ModalOrdenCompra from "./ModalOrdenCompra";
 import ModalCrearCotizacion from "./ModalCrearCotizacion";
 import SelectorEmpresas from "./SelectorEmpresas";
+import ModalRequerimiento from "./ModalRequerimiento";
 import ModalSeleccionarTipoInforme from "./ModalSeleccionarTipoInforme";
 import FormInformeTecnico from "./FormInformeTecnico";
 import VistaInformeTecnico from "./VistaInformeTecnico";
@@ -68,6 +69,8 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
   const [tipoElegido, setTipoElegido] = useState(null);
   const [verInforme, setVerInforme] = useState(null);
   const [editandoInforme, setEditandoInforme] = useState(null);
+  const [requerimientos, setRequerimientos] = useState([]);
+  const [crearRequerimientoOpen, setCrearRequerimientoOpen] = useState(false);
 
   const cargarRelaciones = () => {
     Promise.all([
@@ -98,6 +101,10 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
     fetchAuth(`/informes-tecnicos?ordenTrabajo=${ot._id}`)
       .then(r => r.ok && r.json())
       .then(infs => setInformes(infs || []));
+
+    fetchAuth(`/requerimientos?ordenTrabajo=${ot._id}`)
+      .then(r => r.ok && r.json())
+      .then(reqs => setRequerimientos(reqs || []));
   };
 
   const cargarEmpresas = () =>
@@ -433,7 +440,78 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
             )}
           </section>
         </div>
+
+        <div className="max-w-6xl mx-auto px-8 pb-8">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-5 rounded-full bg-orange-500" />
+              <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                Requerimientos de Material ({requerimientos.length})
+              </h2>
+            </div>
+            {!ot.anulado && (
+              <button type="button" onClick={() => setCrearRequerimientoOpen(true)}
+                className="text-sm bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition font-medium">
+                + Nuevo requerimiento
+              </button>
+            )}
+          </div>
+
+          {requerimientos.length === 0 ? (
+            <p className="text-sm text-gray-400">Sin requerimientos de material</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase tracking-wide text-gray-400 border-b border-gray-100">
+                  <tr>
+                    <th className="text-left py-2 pr-3">Código</th>
+                    <th className="text-left py-2 pr-3">Solicitado por</th>
+                    <th className="text-left py-2 pr-3">Ítems</th>
+                    <th className="text-left py-2 pr-3">Estado</th>
+                    <th className="text-left py-2 pr-3">Fecha</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {requerimientos.map(req => {
+                    const pendientes = req.items.filter(it => it.estado === "pendiente").length;
+                    return (
+                      <tr key={req._id}>
+                        <td className="py-2 pr-3 font-mono text-xs text-gray-700">{req.codigo}</td>
+                        <td className="py-2 pr-3 text-gray-600">{req.solicitadoPor}</td>
+                        <td className="py-2 pr-3 text-gray-600">
+                          {req.items.map((it, i) => (
+                            <span key={i} className="block text-xs">
+                              {it.esSolicitudCompra ? `${it.categoriaNombre} (compra)` : it.material?.nombre} — {it.cantidad}
+                            </span>
+                          ))}
+                        </td>
+                        <td className="py-2 pr-3">
+                          <Chip className={pendientes > 0 ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}>
+                            {pendientes > 0 ? `${pendientes} pendiente(s)` : "Completado"}
+                          </Chip>
+                        </td>
+                        <td className="py-2 pr-3 text-gray-500">
+                          {req.createdAt ? new Date(req.createdAt).toLocaleDateString("es-PE") : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
+      </div>
+
+      {crearRequerimientoOpen && (
+        <ModalRequerimiento
+          ot={ot}
+          onClose={() => setCrearRequerimientoOpen(false)}
+          onCreado={() => { setCrearRequerimientoOpen(false); cargarRelaciones(); }}
+        />
+      )}
 
       {crearOCOpen && cot && (
         <ModalOrdenCompra

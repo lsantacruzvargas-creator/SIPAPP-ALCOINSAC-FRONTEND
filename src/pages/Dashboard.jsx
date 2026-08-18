@@ -30,7 +30,7 @@ function TooltipCustom({ active, payload }) {
 }
 
 // ── Tarjeta KPI ──────────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, color }) {
+function KpiCard({ label, value, sub, color, onClick }) {
   const texto = {
     gray:  "text-gray-800",
     blue:  "text-blue-700",
@@ -39,7 +39,10 @@ function KpiCard({ label, value, sub, color }) {
     red:   "text-red-600",
   };
   return (
-    <div className="card flex flex-col gap-1 min-w-0">
+    <div
+      className={`card flex flex-col gap-1 min-w-0 ${onClick ? "cursor-pointer hover:shadow-md transition" : ""}`}
+      onClick={onClick}
+    >
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
       <p className={`text-xl sm:text-3xl font-bold leading-tight break-all ${texto[color] ?? texto.gray}`}>{value}</p>
       {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
@@ -86,13 +89,18 @@ function FilaConversion({ labelOrigen, labelDestino, totalOrigen, enlazados, col
 }
 
 // ── Tarjeta de conversión: Cotización → OC → Factura ─────────────────────────
-function KpiContrasteCard({ cots, ocs, facts }) {
+// `ocsTodas`/`factsTodas` van SIN el filtro de fecha del Dashboard — el
+// vínculo se chequea contra el universo completo del documento destino
+// (la OC de una cotización de julio puede haberse creado en agosto), solo
+// `cots`/`ocs` (los "totalOrigen") respetan el filtro. Ver el comentario
+// más largo junto a `ocsConFactura` en el componente Dashboard.
+function KpiContrasteCard({ cots, ocs, ocsTodas, factsTodas }) {
   const navigate = useNavigate();
 
-  const cotizacionesConOC = new Set(ocs.map((oc) => oc.cotizacion?._id).filter(Boolean));
+  const cotizacionesConOC = new Set(ocsTodas.map((oc) => oc.cotizacion?._id).filter(Boolean));
   const cotsConOC = cots.filter((c) => cotizacionesConOC.has(c._id)).length;
 
-  const ocsConFactura = new Set(facts.map((f) => f.ordenCompra?._id).filter(Boolean));
+  const ocsConFactura = new Set(factsTodas.map((f) => f.ordenCompra?._id).filter(Boolean));
   const ocsConFacturaCount = ocs.filter((oc) => ocsConFactura.has(oc._id)).length;
 
   return (
@@ -188,6 +196,7 @@ function porFecha(arr, campoFecha, ano, mes) {
 
 // ── Dashboard principal ──────────────────────────────────────────────────────
 export default function Dashboard() {
+  const navigate = useNavigate();
   const usuario = JSON.parse(sessionStorage.getItem("usuario") ?? "null");
   const [ots, setOts]     = useState([]);
   const [facts, setFacts] = useState([]);
@@ -242,20 +251,33 @@ export default function Dashboard() {
   // resta de totales), igual que "Cotizaciones sin OC" más abajo.
   const otsSinCotizacion = otsFiltradas.filter((o) => !o.cotizacion).length;
 
-  const cotizacionesConOC = new Set(ocsFiltradas.map((oc) => oc.cotizacion?._id).filter(Boolean));
+  // El vínculo (¿esta OT/OC ya tiene su OC/Factura?) se chequea contra el
+  // universo COMPLETO del documento destino (`ocs`/`facts`, sin filtrar por
+  // fecha) — no contra el subconjunto filtrado. La OC de una OT de julio
+  // puede haberse creado en agosto, y su Factura en setiembre: si el Set se
+  // construía con `ocsFiltradas`/`factsFiltradas` (mismo filtro de fecha),
+  // esos vínculos reales quedaban invisibles y el filtro de mes inflaba
+  // artificialmente los "sin vincular" (ej. 174 de 179 en julio, vs 76 de
+  // 181 en total). Solo el TOTAL de origen respeta el filtro de fecha.
+  const cotizacionesConOC = new Set(ocs.map((oc) => oc.cotizacion?._id).filter(Boolean));
   const otsSinOC = otsFiltradas.filter((o) => !o.cotizacion || !cotizacionesConOC.has(o.cotizacion._id)).length;
 
-  const ocsConFactura = new Set(factsFiltradas.map((f) => f.ordenCompra?._id).filter(Boolean));
-  const ocSinFactura = ocsFiltradas.filter((oc) => !ocsConFactura.has(oc._id)).length;
+  const montoFactura = (f) => Number(f.totalAPagar ?? f.total) || 0;
 
-  const facturasSinPago = factsFiltradas.filter((f) => f.estadoPago === "sin pago").length;
+  const ocsConFactura = new Set(facts.map((f) => f.ordenCompra?._id).filter(Boolean));
+  const ocsSinFacturaLista = ocsFiltradas.filter((oc) => !ocsConFactura.has(oc._id));
+  const ocSinFactura = ocsSinFacturaLista.length;
+  const valorizadoOcSinFactura = ocsSinFacturaLista.reduce((s, oc) => s + (Number(oc.monto ?? oc.total) || 0), 0);
+
+  const factsSinPagoLista = factsFiltradas.filter((f) => f.estadoPago === "sin pago");
+  const facturasSinPago = factsSinPagoLista.length;
+  const valorizadoFacturasSinPago = factsSinPagoLista.reduce((s, f) => s + montoFactura(f), 0);
 
   // El modelo Factura no tiene campo `monto` (siempre daba 0) y `montoPagado`
   // es un registro de pago parcial, no el total de la factura — el monto
   // real de una factura es `totalAPagar` (con `total` como respaldo, mismo
   // criterio que usa DetalleFactura.jsx). "Total pagado" suma las facturas
   // ya marcadas como pagadas; "Por cobrar" suma las que todavía no.
-  const montoFactura = (f) => Number(f.totalAPagar ?? f.total) || 0;
   const totalPagado = factsFiltradas
     .filter((f) => f.estadoPago === "pagado")
     .reduce((s, f) => s + montoFactura(f), 0);
@@ -302,10 +324,13 @@ export default function Dashboard() {
 
       {/* KPIs — fila 1 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KpiCard label="OTs sin cotización" value={otsSinCotizacion} sub={`${otsFiltradas.length} OTs en total`} color="amber" />
+        <KpiCard label="OTs sin cotización" value={otsSinCotizacion} sub={`${otsFiltradas.length} OTs en total`} color="amber"
+          onClick={() => navigate("/reportes#ot-sin-cotizacion")} />
         <KpiCard label="OTs sin Orden de Compra"         value={otsSinOC}         sub={`${otsFiltradas.length} OTs en total`} color="blue"  />
-        <KpiCard label="OC sin Factura"     value={ocSinFactura}     sub={`${ocsFiltradas.length} OC en total`}  color="amber" />
-        <KpiCard label="Facturas sin pago"  value={facturasSinPago}  sub={`${factsFiltradas.length} facturas en total`} color="red" />
+        <KpiCard label="OC sin Factura"     value={ocSinFactura}     sub={`${ocsFiltradas.length} OC en total · ${fmt(valorizadoOcSinFactura)} sin facturar`}  color="amber"
+          onClick={() => navigate("/reportes#oc-sin-factura")} />
+        <KpiCard label="Facturas sin pago"  value={facturasSinPago}  sub={`${factsFiltradas.length} facturas en total · ${fmt(valorizadoFacturasSinPago)} por cobrar`} color="red"
+          onClick={() => navigate("/reportes#facturas-sin-pago")} />
       </div>
 
       {/* KPIs — fila 2 */}
@@ -315,7 +340,7 @@ export default function Dashboard() {
       </div>
 
       {/* Contraste OC vs Cotizaciones */}
-      <KpiContrasteCard cots={cotsFiltradas} ocs={ocsFiltradas} facts={factsFiltradas} />
+      <KpiContrasteCard cots={cotsFiltradas} ocs={ocsFiltradas} ocsTodas={ocs} factsTodas={facts} />
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -117,6 +117,15 @@ export default function Navbar() {
             {(esAdmin || esAlmacenero || esAsistente) && (
               <button onClick={() => ir("/almacen")} className={linkCls("/almacen")}>Almacén</button>
             )}
+            {(esAdmin || esAlmacenero || esTecnico || esSupervisor) && (
+              <button onClick={() => ir("/inventario")} className={linkCls("/inventario")}>Inventario</button>
+            )}
+            {(esAdmin || esAlmacenero) && (
+              <button onClick={() => ir("/requerimientos")} className={linkCls("/requerimientos")}>Requerimientos</button>
+            )}
+            {(esAdmin || esAlmacenero || esAsistente) && (
+              <button onClick={() => ir("/reportes")} className={linkCls("/reportes")}>Reportes</button>
+            )}
             {esAdmin && (
               <button onClick={() => ir("/usuarios")} className={linkCls("/usuarios")}>Usuarios</button>
             )}
@@ -229,6 +238,15 @@ export default function Navbar() {
           </>)}
           {(esAdmin || esAlmacenero || esAsistente) && (
             <button onClick={() => ir("/almacen")} className={linkMovil("/almacen")}>Almacén</button>
+          )}
+          {(esAdmin || esAlmacenero || esTecnico || esSupervisor) && (
+            <button onClick={() => ir("/inventario")} className={linkMovil("/inventario")}>Inventario</button>
+          )}
+          {(esAdmin || esAlmacenero) && (
+            <button onClick={() => ir("/requerimientos")} className={linkMovil("/requerimientos")}>Requerimientos</button>
+          )}
+          {(esAdmin || esAlmacenero || esAsistente) && (
+            <button onClick={() => ir("/reportes")} className={linkMovil("/reportes")}>Reportes</button>
           )}
           {esAdmin && (
             <button onClick={() => ir("/usuarios")} className={linkMovil("/usuarios")}>Usuarios</button>
