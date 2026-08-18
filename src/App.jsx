@@ -32,6 +32,12 @@ function HomeRedirect() {
   const usuario = JSON.parse(sessionStorage.getItem("usuario") || "null");
   if (!token || !usuario) return <Navigate to="/login" replace />;
   if (["tecnico", "supervisor"].includes(usuario.rol)) return <Navigate to="/ordenes-trabajo" replace />;
+  // almacenero no tiene acceso a /dashboard (roles admin/asistente) — sin
+  // este caso, caía en el "return" de abajo y ProtectedRoute lo rebotaba de
+  // vuelta a "/", causando un loop infinito "/" -> /dashboard -> "/" -> ...
+  // (el warning de Chromium "Throttling navigation" en Electron era síntoma
+  // de este loop, no un problema del empaquetado de producción).
+  if (usuario.rol === "almacenero") return <Navigate to="/almacen" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
