@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchAuth, getUsuario } from "../utils/fetchAuth";
+import { valorMayusculas } from "../utils/mayusculas";
 import ModalOrdenCompra from "./ModalOrdenCompra";
 import ModalCrearCotizacion from "./ModalCrearCotizacion";
 import SelectorEmpresas from "./SelectorEmpresas";
@@ -7,6 +8,7 @@ import ModalRequerimiento from "./ModalRequerimiento";
 import ModalSeleccionarTipoInforme from "./ModalSeleccionarTipoInforme";
 import FormInformeTecnico from "./FormInformeTecnico";
 import VistaInformeTecnico from "./VistaInformeTecnico";
+import { tipoInformePorValor } from "../utils/informesTecnicos";
 import {
   FlujoNegocio, TarjetaRelacion, Chip,
   badgePago, badgeOT, money, BotonAnular, BannerAnulado,
@@ -122,10 +124,10 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
   const plantaSel = plantasEmpresa.find(p => p.nombre === form.planta);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
     setForm(prev => ({
       ...prev,
-      [name]: value,
+      [name]: valorMayusculas(e),
       ...(name === "empresa" ? { planta: "" } : {}),
     }));
   };
@@ -440,6 +442,49 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
             )}
           </section>
         </div>
+
+        {informes.length > 0 && (
+          <div className="max-w-6xl mx-auto px-8 pb-8">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-5 rounded-full bg-teal-500" />
+                  <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                    Informes Técnicos ({informes.length})
+                  </h2>
+                </div>
+                {!ot.anulado && (
+                  <button type="button" onClick={() => setSeleccionarTipoOpen(true)}
+                    className="text-sm border border-teal-600 text-teal-700 px-4 py-2 rounded-lg hover:bg-teal-50 transition font-medium">
+                    + Nuevo informe
+                  </button>
+                )}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs uppercase tracking-wide text-gray-400 border-b border-gray-100">
+                    <tr>
+                      <th className="text-left py-2 pr-3">Código</th>
+                      <th className="text-left py-2 pr-3">Tipo</th>
+                      <th className="text-left py-2 pr-3">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {informes.map(inf => (
+                      <tr key={inf._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setVerInforme(inf)}>
+                        <td className="py-2 pr-3 font-mono text-xs text-gray-700">{inf.codigo}</td>
+                        <td className="py-2 pr-3 text-gray-600">{tipoInformePorValor(inf.tipo)?.label || inf.tipo}</td>
+                        <td className="py-2 pr-3 text-gray-500">
+                          {inf.fechaHoraGuardado ? new Date(inf.fechaHoraGuardado).toLocaleDateString("es-PE") : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="max-w-6xl mx-auto px-8 pb-8">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">

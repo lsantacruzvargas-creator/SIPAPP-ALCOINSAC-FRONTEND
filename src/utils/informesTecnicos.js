@@ -6,11 +6,19 @@
 // y las que usa informeTecnicoExcel.js para mapear a celdas de la plantilla.
 //
 // Tipos de sección soportados por el renderer genérico:
-//   campos     — inputs simples (texto/fecha), en grilla
-//   checklist  — pares label+input (con "Hecho por"/"Fecha" opcional arriba)
-//   bullets    — lista dinámica de líneas de texto ("+ agregar línea")
-//   tabla      — grilla de lecturas numéricas (filas x columnas)
-//   evidencias — grupos de fotos con leyenda propia (cámara o galería)
+//   campos      — inputs simples (texto/fecha), en grilla
+//   checklist   — pares label+input (con "Hecho por"/"Fecha" opcional arriba;
+//                 acepta también `imagenes: [{clave,label}]` para casilleros
+//                 de una sola foto dentro de la misma tarjeta, ej. "Imagen
+//                 principal A/B" en Revisión mecánica)
+//   bullets     — lista dinámica de líneas de texto ("+ agregar línea")
+//   tabla       — grilla de lecturas numéricas (filas x columnas)
+//   evidencias  — grupos de fotos DINÁMICOS con leyenda propia (cámara o
+//                 galería, se agregan/quitan libremente)
+//   galeriaFija — grilla FIJA de casilleros de una sola foto cada uno,
+//                 organizados en `paginas: [{titulo, slots:[{clave,label}]}]`
+//                 — cada casillero tiene una posición fija y conocida en la
+//                 plantilla (a diferencia de "evidencias", no son agregables)
 
 // Algunos títulos de checklist traen numeración con punto (ej. "2. Revisión
 // mecánica") — MongoDB descarta en silencio cualquier clave de objeto que
@@ -74,11 +82,50 @@ export const TIPOS_INFORME = [
           { clave: "vRingLT", label: "V-ring LT" }, { clave: "vRingLOT", label: "V-ring LOT" },
           { clave: "retenLT", label: "Retén LT" }, { clave: "retenLOT", label: "Retén LOT" },
         ],
+        // Se insertan como imagen real en el Excel (no solo un link/leyenda) —
+        // ver MAPEOS.bombas.checklist["2. Revisión mecánica"].imagenes en
+        // informeTecnicoExcel.js para las celdas de destino.
+        imagenes: [
+          { clave: "imagenPrincipalA", label: "Imagen principal A" },
+          { clave: "imagenPrincipalB", label: "Imagen principal B" },
+        ],
       },
       BULLETS_ESTANDAR("observaciones", "3. Observaciones"),
       BULLETS_ESTANDAR("resumenTrabajo", "Resumen de trabajo"),
       BULLETS_ESTANDAR("recomendaciones", "Recomendaciones"),
-      { tipo: "evidencias", titulo: "Evidencias fotográficas", clave: "evidencias" },
+      // Grilla FIJA de 27 fotos (9 por página × 3 páginas) — a diferencia de
+      // "evidencias" (grupos dinámicos con leyenda propia, agregables/quitables
+      // libremente), acá cada casillero tiene una posición fija en la
+      // plantilla real y una sola foto (se reemplaza al volver a subir).
+      {
+        tipo: "galeriaFija", titulo: "Evidencias fotográficas", clave: "evidenciasFijas",
+        paginas: [
+          {
+            titulo: "Página 2",
+            slots: [
+              { clave: "p2_1", label: "Foto 1" }, { clave: "p2_2", label: "Foto 2" }, { clave: "p2_3", label: "Foto 3" },
+              { clave: "p2_4", label: "Foto 4" }, { clave: "p2_5", label: "Foto 5" }, { clave: "p2_6", label: "Foto 6" },
+              { clave: "p2_7", label: "Foto 7" }, { clave: "p2_8", label: "Foto 8" }, { clave: "p2_9", label: "Foto 9" },
+            ],
+          },
+          {
+            titulo: "Página 3",
+            slots: [
+              { clave: "p3_1", label: "Foto 1" }, { clave: "p3_2", label: "Foto 2" }, { clave: "p3_3", label: "Foto 3" },
+              { clave: "p3_4", label: "Foto 4" }, { clave: "p3_5", label: "Foto 5" }, { clave: "p3_6", label: "Foto 6" },
+              { clave: "p3_7", label: "Foto 7" }, { clave: "p3_8", label: "Foto 8" }, { clave: "p3_9", label: "Foto 9" },
+            ],
+          },
+          {
+            titulo: "Página 4",
+            slots: [
+              { clave: "p4_1", label: "Foto 1" }, { clave: "p4_2", label: "Foto 2" }, { clave: "p4_3", label: "Foto 3" },
+              { clave: "p4_4", label: "Foto 4" }, { clave: "p4_5", label: "Foto 5" }, { clave: "p4_6", label: "Foto 6" },
+              { clave: "p4_7", label: "Foto 7" }, { clave: "p4_8", label: "Foto 8" }, { clave: "p4_9", label: "Foto 9" },
+            ],
+          },
+        ],
+      },
     ],
   },
   {
@@ -175,8 +222,39 @@ export const TIPOS_INFORME = [
       },
       BULLETS_ESTANDAR("resumenTrabajo", "Resumen de trabajo"),
       BULLETS_ESTANDAR("recomendaciones", "Recomendaciones"),
-      { tipo: "evidencias", titulo: "Evidencias fotográficas — recepción", clave: "evidenciasRecepcion" },
-      { tipo: "evidencias", titulo: "Evidencias fotográficas — salida", clave: "evidenciasSalida" },
+      // El banner impreso solo dice "EVIDENCIAS FOTOGRAFICAS" en las 3
+      // páginas (sin distinguir recepción/salida, ambas pruebas viven en la
+      // página 1 antes de las fotos) — se dejó como una sola sección
+      // genérica de 27 fotos, mismo patrón que bombas/tecnico_mantenimiento.
+      {
+        tipo: "galeriaFija", titulo: "Evidencias fotográficas", clave: "evidenciasFijas",
+        paginas: [
+          {
+            titulo: "Página 2",
+            slots: [
+              { clave: "p2_1", label: "Foto 1" }, { clave: "p2_2", label: "Foto 2" }, { clave: "p2_3", label: "Foto 3" },
+              { clave: "p2_4", label: "Foto 4" }, { clave: "p2_5", label: "Foto 5" }, { clave: "p2_6", label: "Foto 6" },
+              { clave: "p2_7", label: "Foto 7" }, { clave: "p2_8", label: "Foto 8" }, { clave: "p2_9", label: "Foto 9" },
+            ],
+          },
+          {
+            titulo: "Página 3",
+            slots: [
+              { clave: "p3_1", label: "Foto 1" }, { clave: "p3_2", label: "Foto 2" }, { clave: "p3_3", label: "Foto 3" },
+              { clave: "p3_4", label: "Foto 4" }, { clave: "p3_5", label: "Foto 5" }, { clave: "p3_6", label: "Foto 6" },
+              { clave: "p3_7", label: "Foto 7" }, { clave: "p3_8", label: "Foto 8" }, { clave: "p3_9", label: "Foto 9" },
+            ],
+          },
+          {
+            titulo: "Página 4",
+            slots: [
+              { clave: "p4_1", label: "Foto 1" }, { clave: "p4_2", label: "Foto 2" }, { clave: "p4_3", label: "Foto 3" },
+              { clave: "p4_4", label: "Foto 4" }, { clave: "p4_5", label: "Foto 5" }, { clave: "p4_6", label: "Foto 6" },
+              { clave: "p4_7", label: "Foto 7" }, { clave: "p4_8", label: "Foto 8" }, { clave: "p4_9", label: "Foto 9" },
+            ],
+          },
+        ],
+      },
     ],
   },
   {
@@ -191,8 +269,23 @@ export const TIPOS_INFORME = [
           { clave: "marca", label: "Marca" }, { clave: "potencia", label: "Potencia" },
           { clave: "rpm", label: "RPM" }, { clave: "modelo", label: "Modelo" }, { clave: "nEquipo", label: "N°" },
         ],
+        imagenes: [{ clave: "fotoPrincipalEquipo", label: "Foto principal del equipo" }],
       },
-      { tipo: "evidencias", titulo: "Evidencia de los trabajos", clave: "evidenciaTrabajos" },
+      // Antes era `evidencias` (grupos dinámicos sin celda mapeada — las
+      // fotos quedaban sueltas al costado del Excel). Ahora 2 casilleros
+      // fijos, uno por cada mitad de la caja impresa "EVIDENCIA DE LOS
+      // TRABAJO" en la plantilla real.
+      {
+        tipo: "galeriaFija", titulo: "Evidencias de los trabajos", clave: "evidenciaTrabajosFija",
+        paginas: [
+          {
+            titulo: "Página 1", cols: 2,
+            slots: [
+              { clave: "foto1", label: "Foto 1" }, { clave: "foto2", label: "Foto 2" },
+            ],
+          },
+        ],
+      },
       BULLETS_ESTANDAR("resumen", "Resumen", "¤"),
       BULLETS_ESTANDAR("recomendaciones", "Recomendaciones", "¤"),
       {
@@ -201,6 +294,22 @@ export const TIPOS_INFORME = [
         filas: [
           { clave: "fase1Tierra", label: "Fase uno a tierra" }, { clave: "fase2Tierra", label: "Fase dos a tierra" }, { clave: "fase3Tierra", label: "Fase tres a tierra" },
           { clave: "fase12", label: "Fase 1-2" }, { clave: "fase23", label: "Fase 2-3" }, { clave: "fase13", label: "Fase 1-3" },
+        ],
+      },
+      // Evidencia fotográfica de cada lectura del megado — mismas 6 fases
+      // que la tabla de arriba, una foto por cada una (ej. foto del display
+      // del megóhmetro en el momento de la medición).
+      {
+        tipo: "galeriaFija", titulo: "Evidencia fotográfica — Megado de bobina", clave: "evidenciaMegado",
+        paginas: [
+          {
+            titulo: "Página 2", cols: 2,
+            slots: [
+              { clave: "fase1Tierra", label: "Fase uno a tierra" }, { clave: "fase2Tierra", label: "Fase dos a tierra" },
+              { clave: "fase3Tierra", label: "Fase tres a tierra" }, { clave: "fase12", label: "Fase 1-2" },
+              { clave: "fase23", label: "Fase 2-3" }, { clave: "fase13", label: "Fase 1-3" },
+            ],
+          },
         ],
       },
     ],
@@ -275,9 +384,51 @@ export const TIPOS_INFORME = [
           { clave: "canalChavetero", label: "Canal chavetero" }, { clave: "chaveta", label: "Chaveta" },
           { clave: "retenes", label: "Retenes" }, { clave: "tapaCiega", label: "Tapa ciega" },
         ],
+        imagenes: [
+          { clave: "imagenPrincipalA", label: "Imagen principal A" },
+          { clave: "imagenPrincipalB", label: "Imagen principal B" },
+        ],
       },
       BULLETS_ESTANDAR("observaciones", "Observaciones"),
-      { tipo: "evidencias", titulo: "Evidencias fotográficas", clave: "evidencias" },
+      // Grilla fija de 31 fotos: página 1 tiene solo 4 (grilla 2x2, cajas más
+      // grandes), páginas 2-4 tienen 9 cada una (grilla 3x3) — ver
+      // MAPEOS.tecnico_mantenimiento.galeriaFija en informeTecnicoExcel.js.
+      {
+        tipo: "galeriaFija", titulo: "Evidencias fotográficas", clave: "evidenciasFijas",
+        paginas: [
+          {
+            titulo: "Página 1", cols: 2,
+            slots: [
+              { clave: "p1_1", label: "Foto 1" }, { clave: "p1_2", label: "Foto 2" },
+              { clave: "p1_3", label: "Foto 3" }, { clave: "p1_4", label: "Foto 4" },
+            ],
+          },
+          {
+            titulo: "Página 2",
+            slots: [
+              { clave: "p2_1", label: "Foto 1" }, { clave: "p2_2", label: "Foto 2" }, { clave: "p2_3", label: "Foto 3" },
+              { clave: "p2_4", label: "Foto 4" }, { clave: "p2_5", label: "Foto 5" }, { clave: "p2_6", label: "Foto 6" },
+              { clave: "p2_7", label: "Foto 7" }, { clave: "p2_8", label: "Foto 8" }, { clave: "p2_9", label: "Foto 9" },
+            ],
+          },
+          {
+            titulo: "Página 3",
+            slots: [
+              { clave: "p3_1", label: "Foto 1" }, { clave: "p3_2", label: "Foto 2" }, { clave: "p3_3", label: "Foto 3" },
+              { clave: "p3_4", label: "Foto 4" }, { clave: "p3_5", label: "Foto 5" }, { clave: "p3_6", label: "Foto 6" },
+              { clave: "p3_7", label: "Foto 7" }, { clave: "p3_8", label: "Foto 8" }, { clave: "p3_9", label: "Foto 9" },
+            ],
+          },
+          {
+            titulo: "Página 4",
+            slots: [
+              { clave: "p4_1", label: "Foto 1" }, { clave: "p4_2", label: "Foto 2" }, { clave: "p4_3", label: "Foto 3" },
+              { clave: "p4_4", label: "Foto 4" }, { clave: "p4_5", label: "Foto 5" }, { clave: "p4_6", label: "Foto 6" },
+              { clave: "p4_7", label: "Foto 7" }, { clave: "p4_8", label: "Foto 8" }, { clave: "p4_9", label: "Foto 9" },
+            ],
+          },
+        ],
+      },
       BULLETS_ESTANDAR("procesoTrabajo", "Proceso de trabajo"),
       BULLETS_ESTANDAR("recomendaciones", "Recomendaciones"),
     ],

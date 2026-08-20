@@ -14,8 +14,23 @@ function Campo({ label, valor }) {
 function BloqueSeccion({ seccion, campos }) {
   if (seccion.tipo === "campos") {
     return (
-      <div className="grid grid-cols-2 gap-4">
-        {seccion.campos.map((c) => <Campo key={c.clave} label={c.label} valor={campos[c.clave]} />)}
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-4">
+          {seccion.campos.map((c) => <Campo key={c.clave} label={c.label} valor={campos[c.clave]} />)}
+        </div>
+        {seccion.imagenes && (
+          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+            {seccion.imagenes.map((img) => (
+              <div key={img.clave}>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{img.label}</p>
+                {campos[img.clave] ? (
+                  <img src={imgUrl(campos[img.clave])} alt={img.label} onClick={() => window.open(imgUrl(campos[img.clave]), "_blank")}
+                    className="w-full aspect-square object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition" />
+                ) : <span className="text-sm text-gray-300">Sin foto</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -33,6 +48,19 @@ function BloqueSeccion({ seccion, campos }) {
         <div className="grid grid-cols-2 gap-3">
           {seccion.items.map((it) => <Campo key={it.clave} label={it.label} valor={campos[it.clave]} />)}
         </div>
+        {seccion.imagenes && (
+          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+            {seccion.imagenes.map((img) => (
+              <div key={img.clave}>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{img.label}</p>
+                {campos[img.clave] ? (
+                  <img src={imgUrl(campos[img.clave])} alt={img.label} onClick={() => window.open(imgUrl(campos[img.clave]), "_blank")}
+                    className="w-full aspect-square object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition" />
+                ) : <span className="text-sm text-gray-300">Sin foto</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -102,6 +130,31 @@ function BloqueSeccion({ seccion, campos }) {
         ))}
       </div>
     ) : <span className="text-sm text-gray-300">Sin fotos</span>;
+  }
+  if (seccion.tipo === "galeriaFija") {
+    const valores = campos[seccion.clave] || {};
+    return (
+      <div className="space-y-4">
+        {seccion.paginas.map((pagina) => (
+          <div key={pagina.titulo}>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{pagina.titulo}</p>
+            <div className={`grid gap-2 ${pagina.cols === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+              {pagina.slots.map((slot) => (
+                valores[slot.clave] ? (
+                  <img key={slot.clave} src={imgUrl(valores[slot.clave])} alt={slot.label}
+                    onClick={() => window.open(imgUrl(valores[slot.clave]), "_blank")}
+                    className="w-full aspect-square object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition" />
+                ) : (
+                  <div key={slot.clave} className="w-full aspect-square rounded-lg border border-dashed border-gray-200 flex items-center justify-center text-[10px] text-gray-300">
+                    {slot.label}
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
   return null;
 }

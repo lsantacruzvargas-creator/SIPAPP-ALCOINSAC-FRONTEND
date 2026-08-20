@@ -123,7 +123,7 @@ export default function Navbar() {
             {(esAdmin || esAlmacenero) && (
               <button onClick={() => ir("/requerimientos")} className={linkCls("/requerimientos")}>Requerimientos</button>
             )}
-            {(esAdmin || esAlmacenero || esAsistente) && (
+            {(esAdmin || esAsistente) && (
               <button onClick={() => ir("/reportes")} className={linkCls("/reportes")}>Reportes</button>
             )}
             {esAdmin && (
@@ -245,7 +245,7 @@ export default function Navbar() {
           {(esAdmin || esAlmacenero) && (
             <button onClick={() => ir("/requerimientos")} className={linkMovil("/requerimientos")}>Requerimientos</button>
           )}
-          {(esAdmin || esAlmacenero || esAsistente) && (
+          {(esAdmin || esAsistente) && (
             <button onClick={() => ir("/reportes")} className={linkMovil("/reportes")}>Reportes</button>
           )}
           {esAdmin && (

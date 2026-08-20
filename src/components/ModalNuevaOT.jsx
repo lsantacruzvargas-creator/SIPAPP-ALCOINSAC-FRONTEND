@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
+import { valorMayusculas } from "../utils/mayusculas";
 import SelectorEmpresas from "./SelectorEmpresas";
 
 const INP    = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 w-full";
@@ -43,7 +44,7 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
   const empresaSel = empresas.find((e) => e._id === form.empresa);
   const plantaSel = empresaSel?.plantas?.find((p) => p.nombre === form.planta);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: valorMayusculas(e) });
 
   const guardar = async () => {
     if (!form.numeroOT.trim()) return setError("El N° de Orden de Trabajo es obligatorio.");

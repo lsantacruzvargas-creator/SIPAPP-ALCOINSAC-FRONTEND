@@ -12,6 +12,40 @@ const EXTENSION_SOPORTADA = (ruta) => {
   return null;
 };
 
+const COLUMNA_A_NUMERO_0 = (letra) => {
+  let n = 0;
+  for (const ch of letra) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n - 1; // 0-indexado, lo que espera el anchor de addImage
+};
+
+// Inserta una imagen real (no un link ni una leyenda) redimensionada para
+// llenar EXACTAMENTE el rango de celdas dado — a diferencia de las fotos
+// "sueltas" al final del archivo (ver más abajo), estas van directo en su
+// recuadro de la plantilla. El anchor de dos celdas (tl/br) estira la
+// imagen entre esos dos puntos sin depender de calcular el ancho/alto real
+// en píxeles de las columnas/filas involucradas — más robusto que fijar un
+// tamaño fijo en px. `br` es EXCLUSIVO (una celda después de la última),
+// por eso se suma 1 al índice 0-based de la columna/fila final.
+async function insertarImagenEnRango(wb, ws, rango, rutaImagen) {
+  if (!rutaImagen) return;
+  const extension = EXTENSION_SOPORTADA(rutaImagen);
+  if (!extension) { console.warn("Formato de imagen no soportado para Excel:", rutaImagen); return; }
+  const [inicio, fin] = rango.split(":");
+  const colInicio = inicio.match(/[A-Z]+/)[0], filaInicio = parseInt(inicio.match(/\d+/)[0]);
+  const colFin = fin.match(/[A-Z]+/)[0], filaFin = parseInt(fin.match(/\d+/)[0]);
+  try {
+    const res = await fetch(imgUrl(rutaImagen));
+    const buffer = await res.arrayBuffer();
+    const imageId = wb.addImage({ buffer, extension });
+    ws.addImage(imageId, {
+      tl: { col: COLUMNA_A_NUMERO_0(colInicio), row: filaInicio - 1 },
+      br: { col: COLUMNA_A_NUMERO_0(colFin) + 1, row: filaFin },
+    });
+  } catch (err) {
+    console.warn("No se pudo insertar la imagen en el Excel:", rutaImagen, err.message);
+  }
+}
+
 // exceljs pierde varios metadatos de la hoja al recargar y regrabar el
 // archivo, todos ajenos a los datos del informe (nunca cambian entre
 // exportaciones de la misma plantilla), así que se restauran byte a byte
@@ -184,6 +218,17 @@ const MAPEOS = {
           vRingLT: "G39", vRingLOT: "M39",
           retenLT: "G40", retenLOT: "M40",
         },
+        // Rangos (no celdas sueltas) — la imagen se inserta redimensionada
+        // para llenar exactamente el recuadro con borde de la plantilla.
+        // Verificado el 2026-08-20 escaneando la plantilla real: bordes con
+        // grosor "medium" delimitan AD17:BA39 (504x483px) y AD41:BA61
+        // (504x441px), ambos vacíos, sin corrimiento respecto a esta zona
+        // de la hoja (que tampoco se movió — coincide celda a celda con el
+        // resto del mapeo de "2. Revisión mecánica" ya verificado).
+        imagenes: {
+          imagenPrincipalA: "AD17:BA39",
+          imagenPrincipalB: "AD41:BA61",
+        },
       },
     },
     bullets: {
@@ -191,8 +236,27 @@ const MAPEOS = {
       resumenTrabajo: { col: "E", fila: 65, max: 10 },
       recomendaciones: { col: "E", fila: 76, max: 3 },
     },
-    evidencias: {
-      evidencias: ["D94", "U94", "AL94", "D115", "U115", "AL115", "D136", "U136", "AL136"],
+    // 27 casilleros fijos (9 por página × 3 páginas), cada uno un rango de
+    // 16x16 celdas (336x336px) con borde "medium" — verificado el
+    // 2026-08-20 escaneando la plantilla real fila por fila: SIN corrimiento
+    // respecto a las coordenadas originales (los encabezados/pies repetidos
+    // "EVIDENCIAS FOTOGRAFICAS"/"HECHO POR:" de cada página, en 88-91/157,
+    // 166-169/235 y 243-246/312, confirman que esta zona de la hoja no se
+    // movió). Reemplaza el mapeo `evidencias` anterior (grupos dinámicos con
+    // leyenda, sin imagen real insertada) — ver `galeriaFija` en el switch
+    // de escritura más abajo.
+    galeriaFija: {
+      evidenciasFijas: {
+        p2_1: "D94:S109", p2_2: "U94:AJ109", p2_3: "AL94:BA109",
+        p2_4: "D115:S130", p2_5: "U115:AJ130", p2_6: "AL115:BA130",
+        p2_7: "D136:S151", p2_8: "U136:AJ151", p2_9: "AL136:BA151",
+        p3_1: "D172:S187", p3_2: "U172:AJ187", p3_3: "AL172:BA187",
+        p3_4: "D193:S208", p3_5: "U193:AJ208", p3_6: "AL193:BA208",
+        p3_7: "D214:S229", p3_8: "U214:AJ229", p3_9: "AL214:BA229",
+        p4_1: "D249:S264", p4_2: "U249:AJ264", p4_3: "AL249:BA264",
+        p4_4: "D270:S285", p4_5: "U270:AJ285", p4_6: "AL270:BA285",
+        p4_7: "D291:S306", p4_8: "U291:AJ306", p4_9: "AL291:BA306",
+      },
     },
     footer: { hechoPor: "G79", vB: "AB79", fecha: "AY79" },
   },
@@ -281,9 +345,26 @@ const MAPEOS = {
       resumenTrabajo: { col: "F", fila: 63, max: 11 },
       recomendaciones: { col: "F", fila: 76, max: 3 },
     },
-    evidencias: {
-      evidenciasRecepcion: ["E94", "V94", "AM94", "E115", "V115", "AM115", "E136", "V136", "AM136"],
-      evidenciasSalida: ["E172", "V172", "AM172", "E193", "V193", "AM193", "E214", "V214", "AM214"],
+    // 27 casilleros fijos (9 por página × 3 páginas), cada uno 336x336px con
+    // borde "medium". Verificado el 2026-08-20 escaneando la plantilla real
+    // fila por fila (bordes + banners repetidos "EVIDENCIAS FOTOGRAFICAS"/
+    // "HECHO POR:" de cada página): SIN corrimiento. Reemplaza el mapeo
+    // `evidencias` anterior (dos grupos "recepción"/"salida" con solo
+    // leyenda de texto, sin imagen real insertada) — el formulario ahora
+    // usa una sola sección genérica sin esa distinción (decisión del
+    // usuario, 2026-08-20: el banner impreso no la distingue tampoco).
+    galeriaFija: {
+      evidenciasFijas: {
+        p2_1: "E94:T109", p2_2: "V94:AK109", p2_3: "AM94:BB109",
+        p2_4: "E115:T130", p2_5: "V115:AK130", p2_6: "AM115:BB130",
+        p2_7: "E136:T151", p2_8: "V136:AK151", p2_9: "AM136:BB151",
+        p3_1: "E172:T187", p3_2: "V172:AK187", p3_3: "AM172:BB187",
+        p3_4: "E193:T208", p3_5: "V193:AK208", p3_6: "AM193:BB208",
+        p3_7: "E214:T229", p3_8: "V214:AK229", p3_9: "AM214:BB229",
+        p4_1: "E250:T265", p4_2: "V250:AK265", p4_3: "AM250:BB265",
+        p4_4: "E271:T286", p4_5: "V271:AK286", p4_6: "AM271:BB286",
+        p4_7: "E292:T307", p4_8: "V292:AK307", p4_9: "AM292:BB307",
+      },
     },
     footer: { hechoPor: "H79", vB: "AC79", fecha: "AZ79" },
   },
@@ -297,6 +378,14 @@ const MAPEOS = {
       cliente: ["G12", "G76"], equipo: ["G11", "G75"], planta: ["V11", "V75"],
       tecnico: ["V12", "V76"], ot: ["AI12", "AI76"],
       marca: "G18", potencia: "G19", rpm: "G20", modelo: "G21", nEquipo: "G22",
+    },
+    // Rangos de imagen para las secciones "campos" — namespace propio (no
+    // dentro de `campos`, que solo guarda direcciones de celda de texto) ya
+    // que `campos` no se anida por título de sección. Verificado el
+    // 2026-08-20 escaneando la plantilla real: caja vacía sin corrimiento,
+    // justo debajo del banner "DATOS DEL EQUIPO".
+    camposImagenes: {
+      fotoPrincipalEquipo: "U15:AL26",
     },
     tabla: {
       // Zona de gráfico de megado en la plantilla real (no una grilla de
@@ -313,6 +402,19 @@ const MAPEOS = {
     bullets: {
       resumen: { col: "C", fila: 49, max: 7 },
       recomendaciones: { col: "C", fila: 62, max: 3 },
+    },
+    // 2 casilleros fijos junto al banner "EVIDENCIA DE LOS TRABAJO" (row27)
+    // y 6 junto a "MEGADO DE BOBINA" (row86-87), uno por cada fase de la
+    // tabla de arriba — mismas claves que `tabla.megadoBobina` para que la
+    // relación sea obvia. Verificado el 2026-08-20 escaneando la plantilla
+    // real: cajas vacías, sin corrimiento.
+    galeriaFija: {
+      evidenciaTrabajosFija: { foto1: "C28:T45", foto2: "U28:AL45" },
+      evidenciaMegado: {
+        fase1Tierra: "C88:T102", fase2Tierra: "U88:AL102",
+        fase3Tierra: "C104:T118", fase12: "U104:AL118",
+        fase23: "C120:T134", fase13: "U120:AL134",
+      },
     },
     // Esta plantilla no tiene ningún bloque "Hecho por/V.B./Fecha" impreso
     // (confirmado revisando las 199 filas de la hoja) — la firma queda en
@@ -382,12 +484,40 @@ const MAPEOS = {
           engranaje: "K25", ejeSinFin: "K26", tapasRodajes: "K27", rodamientos: "K28",
           canalChavetero: "K29", chaveta: "K30", retenes: "K31", tapaCiega: "K32",
         },
+        // Verificado el 2026-08-20 escaneando la plantilla real: bordes
+        // "thin" delimitan AF15:BD28 (475x280px) y AF30:BD38 (475x180px),
+        // ambos vacíos, sin corrimiento.
+        imagenes: {
+          imagenPrincipalA: "AF15:BD28",
+          imagenPrincipalB: "AF30:BD38",
+        },
       },
     },
     bullets: {
       observaciones: { col: "F", fila: 35, max: 3 },
       procesoTrabajo: { col: "F", fila: 72, max: 3 },
       recomendaciones: { col: "F", fila: 77, max: 1 },
+    },
+    // 31 casilleros fijos: página 1 tiene 4 (grilla 2x2, cajas más grandes,
+    // ~513x220px), páginas 2-4 tienen 9 cada una (grilla 3x3, ~304x320px).
+    // Verificado el 2026-08-20 escaneando la plantilla real fila por fila
+    // (bordes + banners repetidos "EVIDENCIAS FOTOGRAFICAS"/"EVIDENCIA DE
+    // TRABAJO"/"HECHO POR:" en las filas esperadas de cada página): SIN
+    // corrimiento respecto a las coordenadas dadas.
+    galeriaFija: {
+      evidenciasFijas: {
+        p1_1: "D42:AD52", p1_2: "AE42:BE52",
+        p1_3: "D56:AD66", p1_4: "AE56:BE66",
+        p2_1: "E93:T108", p2_2: "W93:AL108", p2_3: "AO93:BD108",
+        p2_4: "E115:T130", p2_5: "W115:AL130", p2_6: "AO115:BD130",
+        p2_7: "E137:T152", p2_8: "W137:AL152", p2_9: "AO137:BD152",
+        p3_1: "E173:T188", p3_2: "W173:AL188", p3_3: "AO173:BD188",
+        p3_4: "E195:T210", p3_5: "W195:AL210", p3_6: "AO195:BD210",
+        p3_7: "E217:T232", p3_8: "W217:AL232", p3_9: "AO217:BD232",
+        p4_1: "E253:T268", p4_2: "W253:AL268", p4_3: "AO253:BD268",
+        p4_4: "E275:T290", p4_5: "W275:AL290", p4_6: "AO275:BD290",
+        p4_7: "E297:T312", p4_8: "W297:AL312", p4_9: "AO297:BD312",
+      },
     },
     // El bloque "HECHO POR / V.B. / FECHA" se repite idéntico al final de
     // cada una de las 4 páginas de la plantilla (80/160/240/320), pero acá
@@ -416,9 +546,13 @@ const SIN_TEXTO_ANEXO_EVIDENCIAS_FIRMA = new Set(["bobina_estator_mtto", "bobina
 // anexo lo que ya se escribió con precisión.
 const elementosSinMapear = (seccion, mapa, campos) => {
   if (seccion.tipo === "campos") {
-    return seccion.campos
+    const pares = seccion.campos
       .filter((c) => !mapa.campos?.[c.clave])
       .map((c) => [c.label, campos[c.clave] ?? ""]);
+    (seccion.imagenes || [])
+      .filter((img) => !mapa.camposImagenes?.[img.clave])
+      .forEach((img) => pares.push([img.label, campos[img.clave] ? "Foto subida (sin celda mapeada)" : ""]));
+    return pares;
   }
   if (seccion.tipo === "checklist") {
     const m = mapa.checklist?.[seccion.titulo];
@@ -428,6 +562,9 @@ const elementosSinMapear = (seccion, mapa, campos) => {
     seccion.items
       .filter((it) => !m?.items?.[it.clave])
       .forEach((it) => pares.push([it.label, campos[it.clave] ?? ""]));
+    (seccion.imagenes || [])
+      .filter((img) => !m?.imagenes?.[img.clave])
+      .forEach((img) => pares.push([img.label, campos[img.clave] ? "Foto subida (sin celda mapeada)" : ""]));
     return pares;
   }
   if (seccion.tipo === "tabla") {
@@ -491,20 +628,32 @@ export async function exportarInformeTecnicoExcel(informe, ot) {
     (Array.isArray(addr) ? addr : [addr]).forEach((a) => { ws.getCell(a).value = String(valor); });
   };
 
-  def.secciones.forEach((seccion) => {
+  // for...of (no .forEach) porque "checklist" y "galeriaFija" necesitan
+  // await para insertar imágenes reales en su rango antes de seguir con la
+  // siguiente sección.
+  for (const seccion of def.secciones) {
     if (seccion.tipo === "campos") {
       seccion.campos.forEach((c) => escribir(mapa.campos?.[c.clave], campos[c.clave]));
+      for (const img of seccion.imagenes || []) {
+        const rango = mapa.camposImagenes?.[img.clave];
+        if (rango) await insertarImagenEnRango(wb, ws, rango, campos[img.clave]);
+      }
     } else if (seccion.tipo === "checklist") {
       const m = mapa.checklist?.[seccion.titulo];
-      if (!m) return;
-      if (seccion.hechoPor) {
-        escribir(m.hechoPor, campos[`${claveChecklist(seccion.titulo)}__hechoPor`]);
-        escribir(m.fecha, campos[`${claveChecklist(seccion.titulo)}__fecha`]);
+      if (m) {
+        if (seccion.hechoPor) {
+          escribir(m.hechoPor, campos[`${claveChecklist(seccion.titulo)}__hechoPor`]);
+          escribir(m.fecha, campos[`${claveChecklist(seccion.titulo)}__fecha`]);
+        }
+        seccion.items.forEach((it) => escribir(m.items?.[it.clave], campos[it.clave]));
+        for (const img of seccion.imagenes || []) {
+          const rango = m.imagenes?.[img.clave];
+          if (rango) await insertarImagenEnRango(wb, ws, rango, campos[img.clave]);
+        }
       }
-      seccion.items.forEach((it) => escribir(m.items?.[it.clave], campos[it.clave]));
     } else if (seccion.tipo === "tabla") {
       const m = mapa.tabla?.[seccion.clave];
-      if (!m) return;
+      if (!m) continue;
       if (seccion.hechoPor) {
         escribir(m.hechoPor, campos[`${claveChecklist(seccion.titulo)}__hechoPor`]);
         escribir(m.fecha, campos[`${claveChecklist(seccion.titulo)}__fecha`]);
@@ -516,16 +665,26 @@ export async function exportarInformeTecnicoExcel(informe, ot) {
       }));
     } else if (seccion.tipo === "bullets") {
       const m = mapa.bullets?.[seccion.clave];
-      if (!m) return;
+      if (!m) continue;
       const lineas = (campos[seccion.clave] || []).filter(Boolean);
       lineas.slice(0, m.max).forEach((linea, i) => escribir(`${m.col}${m.fila + i}`, linea));
     } else if (seccion.tipo === "evidencias") {
       const slots = mapa.evidencias?.[seccion.clave];
-      if (!slots) return;
+      if (!slots) continue;
       const grupos = campos[seccion.clave] || [];
       grupos.slice(0, slots.length).forEach((g, i) => escribir(slots[i], g.titulo));
+    } else if (seccion.tipo === "galeriaFija") {
+      const m = mapa.galeriaFija?.[seccion.clave];
+      if (!m) continue;
+      const valores = campos[seccion.clave] || {};
+      for (const pagina of seccion.paginas) {
+        for (const slot of pagina.slots) {
+          const rango = m[slot.clave];
+          if (rango) await insertarImagenEnRango(wb, ws, rango, valores[slot.clave]);
+        }
+      }
     }
-  });
+  }
 
   const fechaFormateada = informe.fecha ? new Date(informe.fecha).toLocaleDateString("es-PE") : "";
   escribir(mapa.footer?.hechoPor, informe.hechoPor);
@@ -580,6 +739,13 @@ export async function exportarInformeTecnicoExcel(informe, ot) {
       } else if (grupos.length > slots.length) {
         bloques.push([`${seccion.titulo} (grupos adicionales)`, grupos.slice(slots.length).map((g) => [g.titulo || "(sin título)", `${g.imagenes?.length || 0} foto(s)`])]);
       }
+    } else if (seccion.tipo === "galeriaFija") {
+      const m = mapa.galeriaFija?.[seccion.clave];
+      const valores = campos[seccion.clave] || {};
+      const sinMapear = seccion.paginas.flatMap((p) => p.slots
+        .filter((s) => valores[s.clave] && !m?.[s.clave])
+        .map((s) => [`${p.titulo} — ${s.label}`, "Foto subida (sin celda mapeada)"]));
+      if (sinMapear.length) bloques.push([seccion.titulo, sinMapear]);
     }
   });
 
