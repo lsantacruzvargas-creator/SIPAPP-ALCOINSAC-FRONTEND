@@ -100,7 +100,7 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     "Nos es grato presentarnos ante ud. Para saludarlo cordialmente y a su vez presentarle nuestra PROPUESTA COMERCIAL.";
   const lineas = doc.splitTextToSize(parrafo, PAGE_R - 14);
   doc.text(lineas, 14, y);
-  y += lineas.length * 5 + 6;
+  y += lineas.length * 5 + 4;
 
   // ─── Título + condición de pago ───
   // doc.setFontSize(10);
@@ -109,15 +109,38 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   // doc.text(tituloLineas, 14, y);
   // y += tituloLineas.length * 5 + 3;
 
-  // Tipo "servicio": descripción con sub-ítems en viñetas + columna Moneda.
-  // Tipo "venta": tabla simple Item/Descripción/Cantidad/Precio unitario/Precio total.
-  const esVenta = cotizacion.tipo === "venta";
-
+  // Misma tabla (columnas, anchos y pie) para ambos tipos de cotización
+  // ("venta" y "servicio") — la única diferencia real entre ellos son los
+  // sub-ítems en viñetas, que solo existen en los ítems de tipo "servicio".
+  // Moneda mostrada en el pie (Subtotal/IGV/Total) —
+  // se toma la del primer ítem, mismo criterio que ya usa cada fila del
+  // cuerpo (una cotización real no mezcla monedas entre ítems).
+  const monedaFooter = cotizacion.items?.[0]?.moneda === "USD" ? "$" : "S/";
+  // Celda en blanco (cols 0-2), a la izquierda de la etiqueta. El borde
+  // izquierdo real de esas filas es el marco exterior de la tabla principal
+  // (tableLineWidth, líneas ~187) — ese rectángulo se repinta siempre encima
+  // de cualquier lineWidth de celda, así que no hay forma de quitarlo ahí.
+  // Por eso el pie (Subtotal/IGV/Total) se dibuja como una SEGUNDA tabla,
+  // pegada justo debajo, sin tableLineWidth propio: así cada celda controla
+  // sus 4 bordes de verdad y sí se puede apagar el izquierdo/inferior.
+  const filaFooterServicio = (etiqueta, valor, lwBlanco) => [
+    { content: "", colSpan: 3, styles: { lineWidth: lwBlanco } },
+    { content: etiqueta, styles: { halign: "right", fontStyle: "bold" } },
+    { content: monedaFooter, styles: { halign: "center", fontStyle: "bold", lineWidth: { top: 0.1, bottom: 0.1, left: 0.1, right: 0 } } },
+    { content: Number(valor).toFixed(2), styles: { halign: "right", fontStyle: "bold", lineWidth: { top: 0.1, bottom: 0.1, left: 0, right: 0.1 } } },
+  ];
+  // Fila 1: top normal (linda con el borde inferior del cuerpo). Las 3 filas
+  // van sin izquierdo/inferior; filas 2-3 también sin top (si no, el top de
+  // una repinta la línea que la anterior apagó con su bottom) — la celda en
+  // blanco queda así totalmente abierta por abajo e izquierda en las 3.
+  const filasFooterServicio = [
+    filaFooterServicio("Subtotal:", cotizacion.subtotal, { top: 0.1, bottom: 0, left: 0, right: 0.1 }),
+    filaFooterServicio("IGV 18%:", cotizacion.igv, { top: 0, bottom: 0, left: 0, right: 0.1 }),
+    filaFooterServicio("TOTAL:", cotizacion.total, { top: 0, bottom: 0, left: 0, right: 0.1 }),
+  ];
   autoTable(doc, {
     startY: y,
-    head: esVenta
-      ? [["#", "Descripción", "Cant.", "Precio Unitario", "Precio Total"]]
-      : [["#", "Descripción", "Cant.", "Precio", "Mon.", "Subtotal"]],
+    head: [["#", "Descripción", "Cant.", "Precio", "Mon.", "Subtotal"]],
     body: cotizacion.items.map((item, i) => {
       // Ítems informativos (sin costo propio, p.ej. sub-agrupaciones del
       // catálogo) suelen quedar en 0.00 — se ocultan #, Cantidad, Moneda,
@@ -125,16 +148,8 @@ export const exportarCotizacionPdf = async (cotizacion) => {
       const precioNum = Number(item.precio) || 0;
       const subtotalNum = Number(item.subtotal) || 0;
       const esInformativo = precioNum === 0;
-      if (esVenta) {
-        const simbolo = item.moneda === "PEN" ? "S/" : "$";
-        return [
-          esInformativo ? "" : i + 1,
-          item.descripcion,
-          esInformativo ? "" : item.cantidad,
-          esInformativo ? "" : `${simbolo} ${precioNum.toFixed(2)}`,
-          subtotalNum === 0 ? "" : `${simbolo} ${subtotalNum.toFixed(2)}`,
-        ];
-      }
+      // Los sub-ítems en viñetas solo existen en ítems de tipo "servicio"
+      // (itemVacioVenta no tiene subItems) — acá no hace falta distinguir.
       let desc = item.descripcion;
       if (item.subItems?.length > 0) {
         desc += "\n" + item.subItems.map((s) => `  • ${s}`).join("\n");
@@ -148,17 +163,11 @@ export const exportarCotizacionPdf = async (cotizacion) => {
         subtotalNum === 0 ? "" : subtotalNum.toFixed(2),
       ];
     }),
-    foot: esVenta
-      ? [
-          [{ content: "Subtotal:", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } }, Number(cotizacion.subtotal).toFixed(2)],
-          [{ content: "IGV 18%:", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } }, Number(cotizacion.igv).toFixed(2)],
-          [{ content: "TOTAL:", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } }, Number(cotizacion.total).toFixed(2)],
-        ]
-      : [
-          [{ content: "Subtotal:", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } }, Number(cotizacion.subtotal).toFixed(2)],
-          [{ content: "IGV 18%:", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } }, Number(cotizacion.igv).toFixed(2)],
-          [{ content: "TOTAL:", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } }, Number(cotizacion.total).toFixed(2)],
-        ],
+    // El pie (Subtotal/IGV/Total) ya no va acá en ningún caso — se dibuja
+    // después como una segunda tabla independiente (ver más abajo) para
+    // poder controlar sus bordes sin que el marco exterior de ESTA tabla
+    // los repinte.
+    foot: undefined,
     theme: "grid",
     margin: { left: 10, right: 10 },
     // Subtotal/IGV/Total (foot) solo en la última página — por defecto
@@ -179,20 +188,16 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     headStyles: { fontSize: 8, fontStyle: "bold", textColor: [0, 0, 0], fillColor: false, lineColor: [0, 0, 0], lineWidth: 0.1 },
     footStyles: { halign: "right", fontStyle: "bold", textColor: [0, 0, 0], fillColor: false, lineColor: [0, 0, 0], lineWidth: 0.1 },
     alternateRowStyles: { fillColor: false },
-    columnStyles: esVenta
-      ? {
-          0: { cellWidth: 8,  halign: "center" },
-          2: { cellWidth: 18, halign: "center" },
-          3: { cellWidth: 32, halign: "right" },
-          4: { cellWidth: 32, halign: "right" },
-        }
-      : {
-          0: { cellWidth: 8,  halign: "center" },
-          2: { cellWidth: 14, halign: "center" },
-          3: { cellWidth: 22, halign: "right" },
-          4: { cellWidth: 12, halign: "center" },
-          5: { cellWidth: 26, halign: "right" },
-        },
+    columnStyles: {
+      0: { cellWidth: 8,  halign: "center" },
+      2: { cellWidth: 12, halign: "center" },
+      3: { cellWidth: 20, halign: "right" },
+      // Sin línea divisoria entre "Mon." y "Subtotal" — se anula el borde
+      // derecho de una y el izquierdo de la otra (el resto de columnas
+      // conserva su lineWidth heredado de `styles`).
+      4: { cellWidth: 10, halign: "center", lineWidth: { top: 0, bottom: 0, left: 0.1, right: 0 } },
+      5: { cellWidth: 20, halign: "right", lineWidth: { top: 0, bottom: 0, left: 0, right: 0.1 } },
+    },
     // autoTable no soporta estilos mixtos dentro de una misma celda — la
     // tabla ya dibujó la descripción completa (grupo + sub-ítems) en peso
     // normal. Acá se tapa esa franja (negrita y normal no ocupan el mismo
@@ -200,9 +205,9 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     // texto normal más angosto asomando al costado) y se vuelve a dibujar
     // SOLO la línea del grupo padre en negrita, limpia, encima.
     didDrawCell: (data) => {
-      if (esVenta || data.section !== "body" || data.column.index !== 1) return;
+      if (data.section !== "body" || data.column.index !== 1) return;
       const item = cotizacion.items[data.row.index];
-      if (!item?.descripcion) return;
+      if (!item?.subItems?.length) return;
       const { cell } = data;
       const fontSize = cell.styles.fontSize;
       doc.setFontSize(fontSize);
@@ -229,6 +234,26 @@ export const exportarCotizacionPdf = async (cotizacion) => {
       doc.setFont("helvetica", "bold");
       lineasPadre.forEach((linea) => { doc.text(linea, x, ly); ly += lineHeight; });
       doc.setFont("helvetica", "normal");
+    },
+  });
+
+  // ─── Pie Subtotal/IGV/Total ───
+  // Tabla aparte, pegada justo debajo de la principal (mismo startY que su
+  // finalY), sin tableLineWidth: cada celda dibuja sus propios 4 bordes, así
+  // la celda de la etiqueta sí puede quedar sin borde izquierdo/inferior.
+  autoTable(doc, {
+    startY: doc.lastAutoTable.finalY,
+    body: filasFooterServicio,
+    theme: "grid",
+    margin: { left: 10, right: 10 },
+    styles: { fontSize: 9, halign: "right", fontStyle: "bold", textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fillColor: false },
+    columnStyles: {
+      0: { cellWidth: 8 },
+      1: { cellWidth: 106 },
+      2: { cellWidth: 12 },
+      3: { cellWidth: 20 },
+      4: { cellWidth: 10, halign: "center" },
+      5: { cellWidth: 20 },
     },
   });
 
@@ -287,5 +312,5 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     });
   }
 
-  doc.save(`${cotizacion.codigo}.pdf`);
+  doc.save(`Cotizacion-${cotizacion.numeroCotizacion || cotizacion.codigo}.pdf`);
 };

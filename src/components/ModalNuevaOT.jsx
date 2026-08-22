@@ -11,6 +11,7 @@ const FORM_VACIO = {
   codigoSap: "",
   empresa: "",
   planta: "",
+  contactoNombre: "",
   titulo: "",
   condicion: "",
   encargado: "",
@@ -43,8 +44,17 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
 
   const empresaSel = empresas.find((e) => e._id === form.empresa);
   const plantaSel = empresaSel?.plantas?.find((p) => p.nombre === form.planta);
+  const contactoSel = plantaSel?.contactos?.find((c) => c.nombre === form.contactoNombre);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: valorMayusculas(e) });
+  const handleChange = (e) => {
+    const { name } = e.target;
+    setForm((f) => ({
+      ...f,
+      [name]: valorMayusculas(e),
+      ...(name === "empresa" ? { planta: "", contactoNombre: "" } : {}),
+      ...(name === "planta" ? { contactoNombre: "" } : {}),
+    }));
+  };
 
   const guardar = async () => {
     if (!form.numeroOT.trim()) return setError("El N° de Orden de Trabajo es obligatorio.");
@@ -58,8 +68,8 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
       codigoSap: form.codigoSap,
       empresa: form.empresa || undefined,
       planta: form.planta,
-      contactoNombre: plantaSel?.contactoNombre || "",
-      contactoTelefono: plantaSel?.contactoTelefono || "",
+      contactoNombre: form.contactoNombre || "",
+      contactoTelefono: contactoSel?.telefono || "",
       titulo: form.titulo,
       condicion: form.condicion,
       encargado: form.encargado,
@@ -151,9 +161,18 @@ export default function ModalNuevaOT({ onClose, onCreada }) {
             </div>
             <div>
               <label className="text-xs text-gray-500 block mb-1">Persona de contacto</label>
-              <p className={`${INP} bg-gray-50 text-gray-500`}>
-                {plantaSel ? `${plantaSel.contactoNombre} — ${plantaSel.contactoTelefono || "—"}` : "Selecciona una planta"}
-              </p>
+              {plantaSel?.contactos?.length > 0 ? (
+                <select name="contactoNombre" value={form.contactoNombre} onChange={handleChange} className={INP}>
+                  <option value="">Seleccionar contacto…</option>
+                  {plantaSel.contactos.map((c, i) => (
+                    <option key={i} value={c.nombre}>{c.nombre} — {c.telefono}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className={`${INP} bg-gray-50 text-gray-500`}>
+                  {plantaSel ? "Sin contactos registrados" : "Selecciona una planta"}
+                </p>
+              )}
             </div>
           </div>
 

@@ -1,6 +1,15 @@
 export const calcSubtotal = (item) =>
   parseFloat((item.cantidad * item.precio).toFixed(2));
 
+// Opciones sugeridas para "Forma de pago" — combo editable (input + datalist):
+// el usuario puede elegir una de estas o escribir cualquier otro texto libre.
+export const OPCIONES_FORMA_PAGO = [
+  "Factura a 15 días",
+  "Factoring",
+  "50% adelanto, saldo cuando entrega",
+  ,
+];
+
 export const INP =
   "border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400";
 export const INP_RO = "bg-transparent border-transparent text-sm px-2 py-1";

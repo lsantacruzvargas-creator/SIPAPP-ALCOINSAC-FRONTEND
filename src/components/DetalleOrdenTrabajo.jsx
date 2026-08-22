@@ -122,13 +122,15 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
   const empresaSel = empresas.find(e => e._id === form.empresa);
   const plantasEmpresa = empresaSel?.plantas ?? [];
   const plantaSel = plantasEmpresa.find(p => p.nombre === form.planta);
+  const contactoSel = plantaSel?.contactos?.find(c => c.nombre === form.contactoNombre);
 
   const handleChange = (e) => {
     const { name } = e.target;
     setForm(prev => ({
       ...prev,
       [name]: valorMayusculas(e),
-      ...(name === "empresa" ? { planta: "" } : {}),
+      ...(name === "empresa" ? { planta: "", contactoNombre: "" } : {}),
+      ...(name === "planta" ? { contactoNombre: "" } : {}),
     }));
   };
 
@@ -136,8 +138,8 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
     setGuardando(true); setError("");
     const body = {
       ...form,
-      contactoNombre: plantaSel?.contactoNombre || "",
-      contactoTelefono: plantaSel?.contactoTelefono || "",
+      contactoNombre: form.contactoNombre || "",
+      contactoTelefono: contactoSel?.telefono || "",
     };
     if (!body.empresa) delete body.empresa;
     if (!body.fechaRecibida) delete body.fechaRecibida;
@@ -341,9 +343,18 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Persona de contacto</label>
-                <p className={`${INP} bg-gray-50 text-gray-500`}>
-                  {plantaSel ? `${plantaSel.contactoNombre} — ${plantaSel.contactoTelefono || "—"}` : "Selecciona una planta"}
-                </p>
+                {plantaSel?.contactos?.length > 0 ? (
+                  <select name="contactoNombre" value={form.contactoNombre} onChange={handleChange} className={INP}>
+                    <option value="">Seleccionar contacto…</option>
+                    {plantaSel.contactos.map((c, i) => (
+                      <option key={i} value={c.nombre}>{c.nombre} — {c.telefono}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className={`${INP} bg-gray-50 text-gray-500`}>
+                    {plantaSel ? "Sin contactos registrados" : "Selecciona una planta"}
+                  </p>
+                )}
               </div>
             </div>
 

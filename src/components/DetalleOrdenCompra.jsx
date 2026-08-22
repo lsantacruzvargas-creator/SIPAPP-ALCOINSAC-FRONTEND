@@ -43,6 +43,7 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
   const [guardando, setGuardando] = useState(false);
   const [error, setError]         = useState("");
   const [cargandoFactura, setCargandoFactura] = useState(false);
+  const [cargandoCotizacion, setCargandoCotizacion] = useState(false);
   const [crearFacturaOpen, setCrearFacturaOpen] = useState(false);
   const puedeEditar = ["admin", "asistente"].includes(getUsuario()?.rol);
 
@@ -54,6 +55,19 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
     const full = lista.find(f => f._id === facturaVinculada._id) || facturaVinculada;
     setCargandoFactura(false);
     onNavegar?.({ tipo: "factura", data: full });
+  };
+
+  // `orden.cotizacion` viene con un populate reducido (codigo, numeroCotizacion,
+  // titulo, total, tipo — ver Backend/src/routes/ordenesCompra.js) que no
+  // alcanza para pintar el detalle completo; hay que traer el documento entero.
+  const abrirCotizacion = async () => {
+    if (!cot || cargandoCotizacion) return;
+    setCargandoCotizacion(true);
+    const res = await fetchAuth("/cotizaciones");
+    const lista = res.ok ? await res.json() : [];
+    const full = lista.find(c => c._id === cot._id) || cot;
+    setCargandoCotizacion(false);
+    onNavegar?.({ tipo: "cotizacion", data: full });
   };
 
   const cargarOTeInformes = () => {
@@ -319,7 +333,7 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
             </div>
 
             <TarjetaRelacion tipo="cotizacion" codigo={cot?.codigo} numero={cot?.numeroCotizacion} vacio={!cot}
-              onClick={cot ? () => onNavegar?.({ tipo: "cotizacion", data: cot }) : undefined}>
+              onClick={cot ? abrirCotizacion : undefined}>
               <p className="text-sm text-gray-700 line-clamp-2">{cot?.titulo}</p>
               {cot?.total > 0 && <p className="text-xs text-gray-500">{money(cot.total)}</p>}
             </TarjetaRelacion>

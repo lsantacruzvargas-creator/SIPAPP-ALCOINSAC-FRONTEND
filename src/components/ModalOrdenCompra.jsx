@@ -68,8 +68,8 @@ export default function ModalOrdenCompra({ cotizacion, onClose, onCreada }) {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Datos de la cotización</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Código</label>
-                <input value={cotizacion.codigo} disabled className={INP_RO} />
+                <label className="text-xs text-gray-500 block mb-1">N° Cotización</label>
+                <input value={cotizacion.numeroCotizacion || cotizacion.codigo} disabled className={INP_RO} />
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Tipo</label>
@@ -111,8 +111,8 @@ export default function ModalOrdenCompra({ cotizacion, onClose, onCreada }) {
             <input
               type="number"
               value={Number(monto/1.18).toFixed(2)}
-              onChange={(e) => setMonto(e.target.value)}
-              className={INP}
+              disabled
+              className={INP_RO}
               min="0"
               step="0.1"
             />

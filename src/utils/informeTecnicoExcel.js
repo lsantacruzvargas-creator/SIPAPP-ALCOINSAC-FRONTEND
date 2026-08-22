@@ -458,6 +458,20 @@ const MAPEOS = {
       diagnostico: { col: "U", fila: 37, max: 5 },
       conclusiones: { col: "U", fila: 43, max: 5 },
     },
+    // Coordenadas forzadas iguales a bobina_estator_mtto.galeriaFija.evidenciaMegado
+    // (pedido explícito del usuario) — el escaneo celda por celda de ESTA
+    // plantilla real mostró el banner "MEGADO DE BOBINA" en la fila 80 y las
+    // etiquetas de fase en A96/A112/A128 con caja bordeada en A:R y S:AJ (no
+    // C:T/U:AL), y sin caja dibujada para el 3er par (Fase 2-3/Fase 1-3) —
+    // si al exportar la imagen no cae dentro del recuadro impreso, revisar
+    // esa plantilla.
+    galeriaFija: {
+      evidenciaMegado: {
+        fase1Tierra: "C88:T102", fase2Tierra: "U88:AL102",
+        fase3Tierra: "C104:T118", fase12: "U104:AL118",
+        fase23: "C120:T134", fase13: "U120:AL134",
+      },
+    },
     // Igual que en bobina_estator_mtto: no existe bloque de firma impreso
     // en esta plantilla — queda en el bloque anexo.
   },
@@ -843,7 +857,8 @@ export async function exportarInformeTecnicoExcel(informe, ot) {
     }
   }
 
-  const nombreArchivo = `${def.label} - ${ot?.codigo || informe.codigo || "informe"}.xlsx`;
+  const numeroOtArchivo = ot?.numeroOT || ot?.codigo;
+  const nombreArchivo = `${def.label} - ${numeroOtArchivo ? numeroOtArchivo + " " : ""}${informe.codigo || "informe"}.xlsx`;
   const bufferSalidaSinMetadatos = await wb.xlsx.writeBuffer();
   const bufferSalida = await restaurarMetadatosDePagina(buf, bufferSalidaSinMetadatos);
   const blob = new Blob([bufferSalida], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });

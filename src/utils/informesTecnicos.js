@@ -360,7 +360,21 @@ export const TIPOS_INFORME = [
       },
       BULLETS_ESTANDAR("diagnostico", "Diagnóstico de motor", "¤"),
       BULLETS_ESTANDAR("conclusiones", "Conclusiones finales", "¤"),
-      { tipo: "evidencias", titulo: "Evidencias fotográficas", clave: "evidencias" },
+      // 6 fotos (una por fase), grilla 2x3 — mismo criterio que
+      // bobina_estator_mtto.evidenciaMegado.
+      {
+        tipo: "galeriaFija", titulo: "Megado de bobina", clave: "evidenciaMegado",
+        paginas: [
+          {
+            titulo: "Página 2", cols: 2,
+            slots: [
+              { clave: "fase1Tierra", label: "Fase uno a tierra" }, { clave: "fase2Tierra", label: "Fase dos a tierra" },
+              { clave: "fase3Tierra", label: "Fase tres a tierra" }, { clave: "fase12", label: "Fase 1-2" },
+              { clave: "fase23", label: "Fase 2-3" }, { clave: "fase13", label: "Fase 1-3" },
+            ],
+          },
+        ],
+      },
     ],
   },
   {

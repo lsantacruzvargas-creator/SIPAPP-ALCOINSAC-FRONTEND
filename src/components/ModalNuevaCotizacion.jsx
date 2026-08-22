@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
-import { calcSubtotal, itemInvalido } from "../utils/cotizacionItems";
+import { calcSubtotal, itemInvalido, OPCIONES_FORMA_PAGO } from "../utils/cotizacionItems";
 import TablaItemsCotizacion from "./TablaItemsCotizacion";
 import { FlujoNegocio, TarjetaRelacion, money } from "./detalleShared";
 
@@ -15,7 +15,7 @@ function calcular(sub) {
 const FORM_VACIO = {
   empresa: "", tipo: "venta", numeroCotizacion: "", atencion: "",
   fecha: new Date().toISOString().split("T")[0], fechaRecibida: "",
-  titulo: "", encargado: "", planta: "", condicionPago: "",
+  titulo: "", encargado: "", planta: "", contactoNombre: "", condicionPago: "",
   plazoEntrega: "", lugarEntrega: "", validezOferta: "",
   numeroGuiaEmision: "", numeroGuiaRemision: "", codigoSap: "", fechaSalida: "",
   subtotal: "",
@@ -55,10 +55,16 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
   const empresaSel = empresas.find(e => e._id === form.empresa);
   const plantasEmpresa = empresaSel?.plantas ?? [];
   const plantaSel = plantasEmpresa.find(p => p.nombre === form.planta);
+  const contactoSel = plantaSel?.contactos?.find(c => c.nombre === form.contactoNombre);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value, ...(name === "empresa" ? { planta: "" } : {}) }));
+    setForm(prev => ({
+      ...prev,
+      [name]: value,
+      ...(name === "empresa" ? { planta: "", contactoNombre: "", lugarEntrega: "" } : {}),
+      ...(name === "planta" ? { contactoNombre: "", lugarEntrega: value } : {}),
+    }));
   };
 
   const subtotalItems = parseFloat(items.reduce((acc, i) => acc + calcSubtotal(i), 0).toFixed(2));
@@ -81,6 +87,8 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
       atencion: form.atencion,
       encargado: form.encargado,
       planta: form.planta,
+      contactoNombre: form.contactoNombre || "",
+      contactoTelefono: contactoSel?.telefono || "",
       plazoEntrega: form.plazoEntrega,
       lugarEntrega: form.lugarEntrega,
       validezOferta: form.validezOferta,
@@ -214,7 +222,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Atención</label>
-                <input name="atencion" value={form.atencion} onChange={handleChange} placeholder="Ej. Área de Compras" className={INP} />
+                <input name="atencion" value={form.atencion||"Area de compras"} onChange={handleChange} placeholder="Ej. Área de Compras" className={INP} />
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Tipo</label>
@@ -225,15 +233,16 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
               </div>
             </div>
 
-            {plantaSel?.contactoNombre && (
+            {plantaSel?.contactos?.length > 0 && (
               <div className="bg-sky-50/50 border border-sky-100 rounded-xl p-4 space-y-1.5">
-                <p className="text-xs font-semibold text-sky-600 uppercase tracking-wide">Contacto de la planta</p>
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium">{plantaSel.contactoNombre}</span>
-                  {(plantaSel.contactoTelefono || plantaSel.contactoCorreo) && (
-                    <span className="text-gray-500"> — {[plantaSel.contactoTelefono, plantaSel.contactoCorreo].filter(Boolean).join(" · ")}</span>
-                  )}
-                </p>
+                <label className="text-xs font-semibold text-sky-600 uppercase tracking-wide block">Contacto de la planta</label>
+                <select name="contactoNombre" value={form.contactoNombre} onChange={handleChange}
+                  className="w-full border border-sky-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-300 transition">
+                  <option value="">Seleccionar contacto…</option>
+                  {plantaSel.contactos.map((c, i) => (
+                    <option key={i} value={c.nombre}>{c.nombre} — {c.telefono}</option>
+                  ))}
+                </select>
               </div>
             )}
 
@@ -245,7 +254,10 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Forma de pago</label>
-                <input name="condicionPago" value={form.condicionPago} onChange={handleChange} placeholder="—" className={INP} />
+                <input name="condicionPago" list="formas-pago" value={form.condicionPago} onChange={handleChange} placeholder="Seleccionar o escribir…" className={INP} />
+                <datalist id="formas-pago">
+                  {OPCIONES_FORMA_PAGO.map((op) => <option key={op} value={op} />)}
+                </datalist>
               </div>
               <div hidden>
                 <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
@@ -256,7 +268,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Plazo de entrega</label>
-                <input name="plazoEntrega" value={form.plazoEntrega} onChange={handleChange} placeholder="Ej. 2 días de recibida su O/C." className={INP} />
+                <input name="plazoEntrega" value={form.plazoEntrega||"2 días recibida la OC"} onChange={handleChange} placeholder="Ej. 2 días de recibida su O/C." className={INP} />
               </div>
             </div>
 
@@ -270,7 +282,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Validez de la oferta</label>
-                <input name="validezOferta" value={form.validezOferta} onChange={handleChange} placeholder="Ej. 15 días" className={INP} />
+                <input name="validezOferta" value={form.validezOferta||"15 días"} onChange={handleChange} placeholder="Ej. 15 días" className={INP} />
               </div>
             </div>
 

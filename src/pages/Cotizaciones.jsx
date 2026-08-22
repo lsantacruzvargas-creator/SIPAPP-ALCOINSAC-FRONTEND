@@ -7,6 +7,7 @@ import {
   itemVacioServicio,
   INP,
   INP_RO,
+  OPCIONES_FORMA_PAGO,
 } from "../utils/cotizacionItems";
 import CeldasNumericas from "../components/CeldasNumericas";
 
@@ -338,9 +339,12 @@ export default function Cotizaciones() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Condición de pago</label>
-              <input name="condicionPago" value={form.condicionPago} onChange={handleChange}
-                required disabled={ro}
+              <input name="condicionPago" list="formas-pago" value={form.condicionPago} onChange={handleChange}
+                required disabled={ro} placeholder="Seleccionar o escribir…"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:bg-gray-50 disabled:text-gray-500" />
+              <datalist id="formas-pago">
+                {OPCIONES_FORMA_PAGO.map((op) => <option key={op} value={op} />)}
+              </datalist>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
