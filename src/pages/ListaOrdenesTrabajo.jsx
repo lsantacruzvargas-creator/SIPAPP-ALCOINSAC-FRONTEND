@@ -12,6 +12,13 @@ const MESES = [
 
 const FILTROS_VACIO = { ano: "", mes: "", estado: "", empresa: "", planta: "", busqueda: "" };
 
+const VISTAS = [
+  { valor: "todasLasOTs", label: "Todas las órdenes de trabajo" },
+  { valor: "todas",       label: "Todas las tablas" },
+  { valor: "pendientes",  label: "Órdenes pendientes" },
+  { valor: "cerradas",    label: "Órdenes cerradas" },
+];
+
 const SORTS = [
   { valor: "fecha",             label: "Más reciente" },
   { valor: "numeroOT",          label: "N° OT" },
@@ -113,6 +120,9 @@ export default function ListaOrdenesTrabajo() {
   const [sortBy, setSortBy] = useState("numeroOT");
   const [seleccionada, setSeleccionada] = useState(null);
   const [crearOTOpen, setCrearOTOpen] = useState(false);
+  // "Todas las órdenes de trabajo" (tabla única, sin categorizar) es la vista
+  // por defecto al abrir la página.
+  const [vista, setVista] = useState("todasLasOTs");
 
   const cargar = () =>
     Promise.all([
@@ -188,6 +198,9 @@ export default function ListaOrdenesTrabajo() {
   const cerradas = filtradas.filter((o) => esCerrada(o));
   const pendientes = filtradas.filter((o) => !esCerrada(o));
   const hayFiltro = Object.values(filtros).some(Boolean);
+  // Si hay una búsqueda de texto activa, no dejar que el selector de "vista"
+  // esconda una tabla donde SÍ cae el resultado.
+  const vistaEfectiva = filtros.busqueda ? "todas" : vista;
 
   // Mismas columnas que TablaOTs — una hoja por cada tabla visible.
   const filaOT = (o) => ({
@@ -282,6 +295,12 @@ export default function ListaOrdenesTrabajo() {
           ))}
         </select>
 
+        <select value={vista} onChange={(e) => setVista(e.target.value)} className={SELECT}>
+          {VISTAS.map(({ valor, label }) => (
+            <option key={valor} value={valor}>{label}</option>
+          ))}
+        </select>
+
         <input
           name="busqueda"
           value={filtros.busqueda}
@@ -298,7 +317,7 @@ export default function ListaOrdenesTrabajo() {
 
         {Object.values(filtros).some(Boolean) && (
           <button
-            onClick={() => setFiltros(FILTROS_VACIO)}
+            onClick={() => { setFiltros(FILTROS_VACIO); setVista("todasLasOTs"); }}
             className="text-sm text-gray-400 hover:text-gray-700 transition"
           >
             Limpiar
@@ -306,21 +325,35 @@ export default function ListaOrdenesTrabajo() {
         )}
       </div>
 
-      <TablaOTs
-        titulo="Órdenes pendientes"
-        acento="bg-amber-500"
-        ordenes={pendientes}
-        onSelect={setSeleccionada}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes pendientes"}
-      />
+      {vistaEfectiva === "todasLasOTs" && (
+        <TablaOTs
+          titulo="Todas las órdenes de trabajo"
+          acento="bg-blue-500"
+          ordenes={filtradas}
+          onSelect={setSeleccionada}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes registradas"}
+        />
+      )}
 
-      <TablaOTs
-        titulo="Órdenes cerradas"
-        acento="bg-gray-500"
-        ordenes={cerradas}
-        onSelect={setSeleccionada}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes cerradas"}
-      />
+      {(vistaEfectiva === "todas" || vistaEfectiva === "pendientes") && (
+        <TablaOTs
+          titulo="Órdenes pendientes"
+          acento="bg-amber-500"
+          ordenes={pendientes}
+          onSelect={setSeleccionada}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes pendientes"}
+        />
+      )}
+
+      {(vistaEfectiva === "todas" || vistaEfectiva === "cerradas") && (
+        <TablaOTs
+          titulo="Órdenes cerradas"
+          acento="bg-gray-500"
+          ordenes={cerradas}
+          onSelect={setSeleccionada}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes cerradas"}
+        />
+      )}
     </div>
 
     {seleccionada && (

@@ -15,6 +15,7 @@ const MESES = [
 const FILTROS_VACIO = { empresa: "", planta: "", ano: "", mes: "", oc: "", busqueda: "" };
 
 const VISTAS = [
+  { valor: "todasLasCotizaciones", label: "Todas las cotizaciones" },
   { valor: "todas",      label: "Todas las tablas" },
   { valor: "sinOT",      label: "Cotizaciones sin OT" },
   { valor: "pendientes", label: "Cotizaciones pendientes de OC" },
@@ -139,7 +140,9 @@ export default function ListaCotizaciones() {
   const [ocPorNumDoc, setOcPorNumDoc] = useState(new Map());
   const [facturaPorNumDoc, setFacturaPorNumDoc] = useState(new Map());
   const [sortBy, setSortBy] = useState("numeroOT");
-  const [vista, setVista] = useState("pendientes");
+  // "Todas las cotizaciones" (tabla única, sin categorizar) es la vista por
+  // defecto al abrir la página.
+  const [vista, setVista] = useState("todasLasCotizaciones");
 
   const buildOtsMap = (ots) => {
     const m = new Map();
@@ -395,12 +398,23 @@ export default function ListaCotizaciones() {
         </select>
 
         <button
-          onClick={() => { setFiltros(FILTROS_VACIO); setVista("todas"); }}
+          onClick={() => { setFiltros(FILTROS_VACIO); setVista("todasLasCotizaciones"); }}
           className="text-sm text-gray-400 hover:text-gray-700 transition"
         >
           Limpiar
         </button>
       </div>
+
+      {vistaEfectiva === "todasLasCotizaciones" && (
+        <TablaCotizaciones
+          titulo="Todas las cotizaciones"
+          acento="bg-blue-500"
+          cotizaciones={filtradas}
+          otsPorCot={otsPorCot}
+          onSelect={seleccionarFila}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones registradas"}
+        />
+      )}
 
       {(vistaEfectiva === "todas" || vistaEfectiva === "sinOT") && (
         <TablaCotizaciones

@@ -10,6 +10,14 @@ const ESTADOS_OT = ["", "pendiente", "en progreso", "completado"];
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const TH = "px-4 py-3 font-semibold text-gray-500 whitespace-nowrap";
 
+const VISTAS = [
+  { valor: "todasLasOC", label: "Todas las órdenes de compra" },
+  { valor: "todas",       label: "Todas las tablas" },
+  { valor: "sinFactura",  label: "Sin factura" },
+  { valor: "conFactura",  label: "Con factura" },
+  { valor: "cerradas",    label: "Cerradas" },
+];
+
 const SORTS = [
   { valor: "fecha",             label: "Más reciente" },
   { valor: "numeroOT",          label: "N° OT" },
@@ -161,6 +169,9 @@ export default function ListaOrdenesCompra() {
   const [planta, setPlanta]     = useState("");
   const [anio, setAnio]         = useState(hoy.getFullYear());
   const [mes, setMes]           = useState(hoy.getMonth() + 1);
+  // "Todas las órdenes de compra" (tabla única, sin categorizar) es la vista
+  // por defecto al abrir la página.
+  const [vista, setVista]       = useState("todasLasOC");
 
   const cargar = () =>
     Promise.all([
@@ -246,6 +257,9 @@ export default function ListaOrdenesCompra() {
   });
 
   const hayFiltro = busqueda || estadoOT || empresa || planta || anio !== hoy.getFullYear() || mes !== hoy.getMonth() + 1;
+  // Si hay una búsqueda de texto activa, no dejar que el selector de "vista"
+  // esconda una tabla donde SÍ cae el resultado.
+  const vistaEfectiva = busqueda ? "todas" : vista;
 
   const tieneFactura = (o) => !!(factByOCMap[o._id] || factMap[o.cotizacion?._id || o.cotizacion]);
   const cerradas   = filtradas.filter((o) => o.estadoCadena === "cerrado");
@@ -384,6 +398,11 @@ export default function ListaOrdenesCompra() {
             <option key={e} value={e}>{e ? e.charAt(0).toUpperCase() + e.slice(1) : "Todo estado OT"}</option>
           ))}
         </select>
+        <select value={vista} onChange={(e) => setVista(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+          {VISTAS.map(({ valor, label }) => (
+            <option key={valor} value={valor}>{label}</option>
+          ))}
+        </select>
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
@@ -395,7 +414,7 @@ export default function ListaOrdenesCompra() {
         </select>
         {hayFiltro && (
           <button
-            onClick={() => { setBusqueda(""); setEstadoOT(""); setEmpresa(""); setPlanta(""); setAnio(hoy.getFullYear()); setMes(hoy.getMonth() + 1); }}
+            onClick={() => { setBusqueda(""); setEstadoOT(""); setEmpresa(""); setPlanta(""); setAnio(hoy.getFullYear()); setMes(hoy.getMonth() + 1); setVista("todasLasOC"); }}
             className="text-sm text-gray-400 hover:text-gray-700 transition"
           >
             Limpiar
@@ -403,35 +422,53 @@ export default function ListaOrdenesCompra() {
         )}
       </div>
 
-      <TablaOC
-        titulo="Órdenes de Compra sin factura"
-        acento="bg-amber-500"
-        ordenes={sinFactura}
-        otMap={otMap} factMap={factMap} factByOCMap={factByOCMap} otNumeroMap={otNumeroMap}
-        onSelect={setOrdenSeleccionada}
-        subirDocumento={subirDocumento}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes de compra sin factura"}
-      />
+      {vistaEfectiva === "todasLasOC" && (
+        <TablaOC
+          titulo="Todas las órdenes de compra"
+          acento="bg-blue-500"
+          ordenes={filtradas}
+          otMap={otMap} factMap={factMap} factByOCMap={factByOCMap} otNumeroMap={otNumeroMap}
+          onSelect={setOrdenSeleccionada}
+          subirDocumento={subirDocumento}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes de compra registradas"}
+        />
+      )}
 
-      <TablaOC
-        titulo="Órdenes de Compra con factura"
-        acento="bg-emerald-500"
-        ordenes={conFactura}
-        otMap={otMap} factMap={factMap} factByOCMap={factByOCMap} otNumeroMap={otNumeroMap}
-        onSelect={setOrdenSeleccionada}
-        subirDocumento={subirDocumento}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes de compra con factura"}
-      />
+      {(vistaEfectiva === "todas" || vistaEfectiva === "sinFactura") && (
+        <TablaOC
+          titulo="Órdenes de Compra sin factura"
+          acento="bg-amber-500"
+          ordenes={sinFactura}
+          otMap={otMap} factMap={factMap} factByOCMap={factByOCMap} otNumeroMap={otNumeroMap}
+          onSelect={setOrdenSeleccionada}
+          subirDocumento={subirDocumento}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes de compra sin factura"}
+        />
+      )}
 
-      <TablaOC
-        titulo="Órdenes de Compra cerradas"
-        acento="bg-gray-500"
-        ordenes={cerradas}
-        otMap={otMap} factMap={factMap} factByOCMap={factByOCMap} otNumeroMap={otNumeroMap}
-        onSelect={setOrdenSeleccionada}
-        subirDocumento={subirDocumento}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes de compra cerradas"}
-      />
+      {(vistaEfectiva === "todas" || vistaEfectiva === "conFactura") && (
+        <TablaOC
+          titulo="Órdenes de Compra con factura"
+          acento="bg-emerald-500"
+          ordenes={conFactura}
+          otMap={otMap} factMap={factMap} factByOCMap={factByOCMap} otNumeroMap={otNumeroMap}
+          onSelect={setOrdenSeleccionada}
+          subirDocumento={subirDocumento}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes de compra con factura"}
+        />
+      )}
+
+      {(vistaEfectiva === "todas" || vistaEfectiva === "cerradas") && (
+        <TablaOC
+          titulo="Órdenes de Compra cerradas"
+          acento="bg-gray-500"
+          ordenes={cerradas}
+          otMap={otMap} factMap={factMap} factByOCMap={factByOCMap} otNumeroMap={otNumeroMap}
+          onSelect={setOrdenSeleccionada}
+          subirDocumento={subirDocumento}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin órdenes de compra cerradas"}
+        />
+      )}
 
       {ordenSeleccionada && (
         <DetalleDocumento

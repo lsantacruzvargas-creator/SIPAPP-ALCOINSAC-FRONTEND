@@ -19,6 +19,13 @@ const ESTADOS_PAGO = [
   { valor: "pagado",       label: "Pagado",       cls: "bg-green-50 text-green-700" },
 ];
 
+const VISTAS = [
+  { valor: "todasLasFacturas", label: "Todas las facturas" },
+  { valor: "todas",            label: "Todas las tablas" },
+  { valor: "abiertas",         label: "Facturas" },
+  { valor: "cerradas",         label: "Facturas cerradas" },
+];
+
 function BadgeCancelacion({ fecha, pagado }) {
   if (!fecha) return <span className="text-gray-300 text-xs">—</span>;
   const str = new Date(fecha).toLocaleDateString("es-PE");
@@ -223,6 +230,9 @@ export default function ListaFacturas() {
   const [sortBy, setSortBy]           = useState("fecha");
   const [confirmarDetraccion, setConfirmarDetraccion] = useState(null);
   const [avisoPermiso, setAvisoPermiso] = useState("");
+  // "Todas las facturas" (tabla única, sin categorizar) es la vista por
+  // defecto al abrir la página.
+  const [vista, setVista] = useState("todasLasFacturas");
 
   const cargar = () =>
     Promise.all([
@@ -368,6 +378,9 @@ export default function ListaFacturas() {
   const cerradas = filtradas.filter(f => f.estadoCadena === "cerrado");
   const abiertas = filtradas.filter(f => f.estadoCadena !== "cerrado");
   const hayFiltro = Object.values(filtros).some(Boolean);
+  // Si hay una búsqueda de texto activa, no dejar que el selector de "vista"
+  // esconda una tabla donde SÍ cae el resultado.
+  const vistaEfectiva = filtros.busqueda ? "todas" : vista;
 
   // Mismas columnas que TablaFacturas, agregando Monto pagado (hoy solo visible
   // en el chip de estado de pago).
@@ -452,36 +465,57 @@ export default function ListaFacturas() {
         <input name="busqueda" value={filtros.busqueda} onChange={handleFiltro}
           placeholder="Buscar por N° OT, cotización, OC, factura, título, empresa o RUC…"
           className={`${SELECT} flex-1 min-w-52`} />
+        <select value={vista} onChange={(e) => setVista(e.target.value)} className={SELECT}>
+          {VISTAS.map(({ valor, label }) => (
+            <option key={valor} value={valor}>{label}</option>
+          ))}
+        </select>
         <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={SELECT}>
           {SORTS.map(({ valor, label }) => (
             <option key={valor} value={valor}>Ordenar: {label}</option>
           ))}
         </select>
         {Object.values(filtros).some(Boolean) && (
-          <button onClick={() => setFiltros(FILTROS_VACIO)}
+          <button onClick={() => { setFiltros(FILTROS_VACIO); setVista("todasLasFacturas"); }}
             className="text-sm text-gray-400 hover:text-gray-700 transition">Limpiar</button>
         )}
       </div>
 
-      <TablaFacturas
-        titulo="Facturas"
-        acento="bg-emerald-500"
-        facturas={abiertas}
-        onSelect={setSeleccionada}
-        handlePagoCheck={handlePagoCheck}
-        handleDetraccionPagoCheck={handleDetraccionPagoCheck}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin facturas registradas"}
-      />
+      {vistaEfectiva === "todasLasFacturas" && (
+        <TablaFacturas
+          titulo="Todas las facturas"
+          acento="bg-blue-500"
+          facturas={filtradas}
+          onSelect={setSeleccionada}
+          handlePagoCheck={handlePagoCheck}
+          handleDetraccionPagoCheck={handleDetraccionPagoCheck}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin facturas registradas"}
+        />
+      )}
 
-      <TablaFacturas
-        titulo="Facturas cerradas"
-        acento="bg-gray-500"
-        facturas={cerradas}
-        onSelect={setSeleccionada}
-        handlePagoCheck={handlePagoCheck}
-        handleDetraccionPagoCheck={handleDetraccionPagoCheck}
-        vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin facturas cerradas"}
-      />
+      {(vistaEfectiva === "todas" || vistaEfectiva === "abiertas") && (
+        <TablaFacturas
+          titulo="Facturas"
+          acento="bg-emerald-500"
+          facturas={abiertas}
+          onSelect={setSeleccionada}
+          handlePagoCheck={handlePagoCheck}
+          handleDetraccionPagoCheck={handleDetraccionPagoCheck}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin facturas registradas"}
+        />
+      )}
+
+      {(vistaEfectiva === "todas" || vistaEfectiva === "cerradas") && (
+        <TablaFacturas
+          titulo="Facturas cerradas"
+          acento="bg-gray-500"
+          facturas={cerradas}
+          onSelect={setSeleccionada}
+          handlePagoCheck={handlePagoCheck}
+          handleDetraccionPagoCheck={handleDetraccionPagoCheck}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin facturas cerradas"}
+        />
+      )}
     </div>
 
     {crearOpen && (
