@@ -37,12 +37,12 @@ export const COLS_OC = [
 // A diferencia de los demás imports, acá la empresa se ubica por Razón Social
 // (no por RUC) y no se autocrea si no existe — ver Backend/src/routes/cadena.js.
 export const COLS_CADENA = [
-  { key: "numeroOT",           label: "N° OT" },
+  { key: "numeroOT",           label: "N° OT", requerido: true },
   { key: "numeroCotizacion",   label: "N° Cotización" },
   { key: "fechaRecibida",      label: "Fecha", tipo: "fecha" },
   { key: "numeroOrdenCompra",  label: "N° OC" },
-  { key: "razonSocial",        label: "Razón Social", requerido: true },
-  { key: "subtotal",           label: "Subtotal sin IGV", tipo: "numero", requerido: true },
+  { key: "razonSocial",        label: "Razón Social" },
+  { key: "subtotal",           label: "Subtotal sin IGV", tipo: "numero" },
   { key: "descripcion",        label: "Descripción" },
   { key: "encargado",          label: "Encargado" },
   { key: "planta",             label: "Planta" },
@@ -222,6 +222,10 @@ export default function ModalImportarExcel({ tipo, columnas, endpoint, color = "
                   total y detracción automáticamente. {columnas.some(c => c.key === "ruc")
                     ? <>La empresa se ubica por <strong>RUC</strong> (se crea si no existe).</>
                     : <>La empresa se ubica por <strong>Razón Social</strong> (se crea si no existe, usando la Razón Social como RUC temporal hasta que se actualice).</>}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Campos obligatorios: <strong>{columnas.filter(c => c.requerido).map(c => c.label).join(", ") || "ninguno"}</strong>.
+                  Una fila sin alguno de ellos se excluye de la importación (se marca en rojo en el siguiente paso).
                 </p>
                 <button onClick={descargarPlantilla}
                   className={`text-sm ${c.soft} px-4 py-2 rounded-lg font-medium hover:opacity-80 transition`}>
