@@ -313,6 +313,10 @@ export default function ListaOrdenesCompra() {
             className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
             Importar Excel
           </button>
+          <button onClick={() => setImportarCadenaOpen(true)}
+            className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
+            Importar cadena completa
+          </button>
           <button onClick={() => setCrearOpen(true)}
             className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800 transition font-medium">
             + Nueva OC
