@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fetchAuth } from "../utils/fetchAuth";
+import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import * as XLSX from "xlsx";
 
 /* Config por tipo: columnas del Excel (orden = plantilla) */
@@ -34,22 +34,20 @@ export const COLS_OC = [
 // Una fila crea y encadena Cotización + Orden de Trabajo + Orden de Compra +
 // Factura, todas con el mismo numeroDocumento. Descripción/Subtotal/Encargado/
 // Planta se comparten entre los 4 documentos — no hay un título por cada tipo.
+// A diferencia de los demás imports, acá la empresa se ubica por Razón Social
+// (no por RUC) y no se autocrea si no existe — ver Backend/src/routes/cadena.js.
 export const COLS_CADENA = [
-  { key: "ruc",                label: "RUC", requerido: true },
-  { key: "razonSocial",        label: "Razón Social" },
+  { key: "numeroOT",           label: "N° OT" },
+  { key: "numeroCotizacion",   label: "N° Cotización" },
+  { key: "fechaRecibida",      label: "Fecha", tipo: "fecha" },
+  { key: "numeroOrdenCompra",  label: "N° OC" },
+  { key: "razonSocial",        label: "Razón Social", requerido: true },
   { key: "subtotal",           label: "Subtotal sin IGV", tipo: "numero", requerido: true },
+  { key: "descripcion",        label: "Descripción" },
   { key: "encargado",          label: "Encargado" },
   { key: "planta",             label: "Planta" },
-  { key: "descripcion",        label: "Descripción (título)" },
-  { key: "numeroCotizacion",   label: "N° Cotización" },
-  { key: "fechaRecibida",      label: "Fecha recibida", tipo: "fecha" },
-  { key: "numeroOT",           label: "N° OT" },
-  { key: "numeroOrdenCompra",  label: "N° Orden (OC)" },
-  { key: "numeroFactura",      label: "N° Factura" },
-  { key: "fechaEmision",       label: "Fecha emisión", tipo: "fecha" },
-  { key: "fechaCancelacion",   label: "Fecha cancelación", tipo: "fecha" },
-  { key: "numeroGuiaEmision",  label: "Guía de llegada" },
   { key: "numeroGuiaRemision", label: "Guía de salida" },
+  { key: "numeroFactura",      label: "N° Factura" },
 ];
 
 // Una fila crea y encadena Cotización + Orden de Trabajo, y opcionalmente
@@ -100,6 +98,11 @@ export default function ModalImportarExcel({ tipo, columnas, endpoint, color = "
   const [importando, setImp]  = useState(false);
   const [resultado, setRes]   = useState(null);
   const [errorGlobal, setErrG] = useState("");
+  const [confirmReemplazo, setConfirmReemplazo] = useState(false);
+  const [textoConfirm, setTextoConfirm]   = useState("");
+  const [reemplazando, setReemplazando]   = useState(false);
+  const [reemplazoHecho, setReemplazoHecho] = useState(null);
+  const esAdmin = getUsuario()?.rol === "admin";
 
   const c = {
     blue:    { btn: "bg-blue-600 hover:bg-blue-700",       soft: "bg-blue-50 text-blue-700",       ring: "focus:ring-blue-300" },
@@ -179,7 +182,26 @@ export default function ModalImportarExcel({ tipo, columnas, endpoint, color = "
     setImp(false);
   };
 
+  // Borra TODA la cadena de documentos (cotizaciones, OT, OC, facturas) antes
+  // de importar — mismo endpoint sin importar desde qué tipo de modal se
+  // dispare (ver Backend/src/routes/cadena.js: DELETE /cadena/todo).
+  const ejecutarReemplazo = async () => {
+    setReemplazando(true);
+    setErrG("");
+    const res = await fetchAuth("/cadena/todo", { method: "DELETE" });
+    if (res.ok) {
+      const data = await res.json();
+      setReemplazoHecho(data);
+      setConfirmReemplazo(false);
+      setTextoConfirm("");
+    } else {
+      setErrG("No se pudo borrar la data existente. Intenta nuevamente.");
+    }
+    setReemplazando(false);
+  };
+
   return (
+    <>
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
 
@@ -197,7 +219,9 @@ export default function ModalImportarExcel({ tipo, columnas, endpoint, color = "
               <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 space-y-3">
                 <p className="text-sm text-gray-600">
                   1. Descarga la plantilla, rellena tus datos y súbela. El <strong>Subtotal</strong> genera el IGV,
-                  total y detracción automáticamente. La empresa se ubica por <strong>RUC</strong> (se crea si no existe).
+                  total y detracción automáticamente. {columnas.some(c => c.key === "ruc")
+                    ? <>La empresa se ubica por <strong>RUC</strong> (se crea si no existe).</>
+                    : <>La empresa se ubica por <strong>Razón Social</strong> (se crea si no existe, usando la Razón Social como RUC temporal hasta que se actualice).</>}
                 </p>
                 <button onClick={descargarPlantilla}
                   className={`text-sm ${c.soft} px-4 py-2 rounded-lg font-medium hover:opacity-80 transition`}>
@@ -215,6 +239,26 @@ export default function ModalImportarExcel({ tipo, columnas, endpoint, color = "
               </label>
 
               {errorGlobal && <p className="text-sm text-red-500">{errorGlobal}</p>}
+
+              {esAdmin && (
+                <div className="rounded-xl bg-red-50 border border-red-100 p-4 space-y-2">
+                  <p className="text-sm text-red-700 font-medium">Zona de peligro</p>
+                  <p className="text-xs text-red-600">
+                    Borra permanentemente TODAS las cotizaciones, órdenes de trabajo, órdenes de compra
+                    y facturas existentes (no toca Empresas) antes de importar el Excel. No se puede deshacer.
+                  </p>
+                  <button onClick={() => setConfirmReemplazo(true)}
+                    className="text-sm border border-red-300 text-red-700 px-4 py-2 rounded-lg hover:bg-red-100 transition font-medium">
+                    Reemplazar todo
+                  </button>
+                  {reemplazoHecho && (
+                    <p className="text-xs text-green-700">
+                      Borrado: {reemplazoHecho.cotizaciones} cotizaciones, {reemplazoHecho.ot} OT,{" "}
+                      {reemplazoHecho.oc} OC, {reemplazoHecho.facturas} facturas.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -348,5 +392,38 @@ export default function ModalImportarExcel({ tipo, columnas, endpoint, color = "
         </div>
       </div>
     </div>
+
+    {confirmReemplazo && (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+          <h4 className="font-semibold text-red-700">¿Reemplazar todo?</h4>
+          <p className="text-sm text-gray-600">
+            Esto borra permanentemente TODAS las cotizaciones, órdenes de trabajo, órdenes de compra
+            y facturas del sistema. No afecta a las Empresas registradas. Esta acción no se puede deshacer.
+          </p>
+          <p className="text-sm text-gray-600">
+            Escribe <strong>REEMPLAZAR</strong> para confirmar:
+          </p>
+          <input
+            autoFocus
+            value={textoConfirm}
+            onChange={(e) => setTextoConfirm(e.target.value)}
+            placeholder="REEMPLAZAR"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-red-300"
+          />
+          <div className="flex gap-3 justify-end pt-2">
+            <button onClick={() => { setConfirmReemplazo(false); setTextoConfirm(""); }}
+              className="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition">
+              Cancelar
+            </button>
+            <button onClick={ejecutarReemplazo} disabled={textoConfirm !== "REEMPLAZAR" || reemplazando}
+              className="text-sm bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 disabled:opacity-40 transition font-medium">
+              {reemplazando ? "Borrando…" : "Sí, reemplazar todo"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
