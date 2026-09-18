@@ -9,6 +9,7 @@ import TablaItemsCotizacion from "./TablaItemsCotizacion";
 import {
   FlujoNegocio, TarjetaRelacion, Chip,
   badgePago, badgeOT, money, BotonAnular, BannerAnulado,
+  BotonCerrarCadena, bloqueadoPorCadenaCerrada,
 } from "./detalleShared";
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-full transition";
@@ -58,7 +59,17 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   const [buscadorOTOpen, setBuscadorOTOpen] = useState(false);
   const [seleccionados, setSeleccionados] = useState(() => new Set());
   const [generandoOT, setGenerandoOT] = useState(false);
+  const [modalCerrarCadenaOpen, setModalCerrarCadenaOpen] = useState(false);
+  const [fechaPagoCierre, setFechaPagoCierre] = useState(() => new Date().toISOString().slice(0, 10));
+  const [numeroFacturaCierre, setNumeroFacturaCierre] = useState("");
+  const [cerrandoCadena, setCerrandoCadena] = useState(false);
   const puedeEditar = ["admin", "asistente"].includes(getUsuario()?.rol);
+  const rolActual = getUsuario()?.rol;
+  const esAdmin = rolActual === "admin";
+  const cadenaCerrada = bloqueadoPorCadenaCerrada(cot.estadoCadena, rolActual);
+  const detraccionCierreAplica = Number(cot.total) >= 701;
+  const detraccionCierreMonto = detraccionCierreAplica ? Math.round(Number(cot.total) * 0.12) : 0;
+  const totalAPagarCierre = Math.round((Number(cot.total) - detraccionCierreMonto) * 100) / 100;
 
   const cargarRelaciones = () => {
     Promise.all([
@@ -264,6 +275,34 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     }
   };
 
+  const toggleCerrarCadena = async (cerrado, fechaPago, numeroFactura) => {
+    const res = await fetchAuth(`/cotizaciones/${cot._id}/cerrar-cadena`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cerrado,
+        ...(fechaPago ? { fechaPago } : {}),
+        ...(numeroFactura ? { numeroFactura } : {}),
+      }),
+    });
+    if (res.ok) {
+      const actualizada = await res.json();
+      setCot(actualizada);
+      onGuardada?.(actualizada);
+      cargarRelaciones();
+    } else {
+      setError("Error al cerrar/abrir la cadena.");
+    }
+  };
+
+  const confirmarCerrarCadena = async () => {
+    setCerrandoCadena(true);
+    await toggleCerrarCadena(true, fechaPagoCierre, numeroFacturaCierre.trim());
+    setCerrandoCadena(false);
+    setModalCerrarCadenaOpen(false);
+    setNumeroFacturaCierre("");
+  };
+
   const ultimo = informes[informes.length - 1];
 
   const pasos = [
@@ -307,6 +346,15 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               Exportar PDF
             </button>
             {!cot.anulado && puedeEditar && <BotonAnular onAnular={anular} />}
+            {!cot.anulado && esAdmin && (cadenaCerrada
+              ? <BotonCerrarCadena cerrado onToggle={toggleCerrarCadena} />
+              : (
+                <button onClick={() => setModalCerrarCadenaOpen(true)}
+                  className="text-xs text-white/70 hover:text-white underline transition">
+                  Cerrar cadena
+                </button>
+              )
+            )}
             {!cot.anulado && puedeEditar && (
               <button onClick={guardar} disabled={guardando}
                 className="bg-white text-sky-700 text-sm px-5 py-2 rounded-lg hover:bg-sky-50 disabled:opacity-60 transition font-semibold shadow-sm shrink-0">
@@ -329,7 +377,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
         <div className="max-w-6xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Datos editables */}
-          <fieldset disabled={cot.anulado || !puedeEditar} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
+          <fieldset disabled={cot.anulado || !puedeEditar || cadenaCerrada} className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 self-start">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-5 rounded-full bg-sky-500" />
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la cotización</h2>
@@ -337,6 +385,12 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
 
             {cot.anulado && (
               <BannerAnulado motivo={cot.motivoAnulacion} por={cot.anuladoPor} fecha={cot.fechaAnulacion} />
+            )}
+
+            {!cot.anulado && cadenaCerrada && (
+              <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                La cadena de este documento está cerrada — de solo lectura. Solo un administrador puede editarla o reabrirla.
+              </p>
             )}
 
             <div className="grid grid-cols-2 gap-4">
@@ -641,6 +695,72 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
           onClose={() => setCrearOCOpen(false)}
           onCreada={() => { setCrearOCOpen(false); cargarRelaciones(); }}
         />
+      )}
+
+      {modalCerrarCadenaOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-800">Cerrar cadena</h3>
+              <button onClick={() => setModalCerrarCadenaOpen(false)} disabled={cerrandoCadena}
+                className="text-gray-400 hover:text-gray-700 text-xl leading-none disabled:opacity-50">✕</button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-500">
+                Se cerrará a mano toda la cadena de este documento (Cotización, OT, Informes, OC y Factura
+                relacionados) y quedará registrado el cobro con la fecha que elijas abajo.
+              </p>
+
+              <div className="bg-gray-50 rounded-xl border border-gray-100 p-4 text-sm space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-medium text-gray-800">{money(cot.subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">I.G.V.</span>
+                  <span className="font-medium text-gray-800">{money(cot.igv)}</span>
+                </div>
+                <div className="flex justify-between border-t border-gray-200 pt-1.5">
+                  <span className="text-gray-500">Total</span>
+                  <span className="font-semibold text-gray-800">{money(cot.total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Detracción{detraccionCierreAplica ? " (12%)" : ""}</span>
+                  <span className="font-medium text-gray-800">
+                    {detraccionCierreAplica ? `- ${money(detraccionCierreMonto)}` : "No aplica"}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-gray-200 pt-1.5">
+                  <span className="text-gray-700 font-semibold">Total a pagar</span>
+                  <span className="font-bold text-gray-900">{money(totalAPagarCierre)}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Fecha de pago</label>
+                <input type="date" value={fechaPagoCierre} onChange={(e) => setFechaPagoCierre(e.target.value)}
+                  className={INP} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">N° de factura (opcional)</label>
+                <input type="text" value={numeroFacturaCierre} onChange={(e) => setNumeroFacturaCierre(e.target.value)}
+                  placeholder="F00X-XXXX" className={INP} />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end">
+              <button onClick={() => setModalCerrarCadenaOpen(false)} disabled={cerrandoCadena}
+                className="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition disabled:opacity-50">
+                Cancelar
+              </button>
+              <button onClick={confirmarCerrarCadena} disabled={cerrandoCadena}
+                className="text-sm bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 disabled:opacity-50 transition font-medium">
+                {cerrandoCadena ? "Cerrando…" : "Cerrar cadena"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

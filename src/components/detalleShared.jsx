@@ -260,6 +260,56 @@ export function BotonAnular({ onAnular }) {
   );
 }
 
+/* ─── Cierre a mano de la cadena de documentos ──────────────────── */
+export function BotonCerrarCadena({ cerrado, onToggle }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const [enviando, setEnviando]       = useState(false);
+
+  const confirmar = async () => {
+    setEnviando(true);
+    await onToggle(!cerrado);
+    setEnviando(false);
+    setConfirmando(false);
+  };
+
+  return (
+    <>
+      <button onClick={() => setConfirmando(true)} disabled={enviando}
+        className="text-xs text-white/70 hover:text-white underline transition disabled:opacity-50">
+        {enviando ? "…" : cerrado ? "Reabrir cadena" : "Cerrar cadena"}
+      </button>
+      {confirmando && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <h4 className="font-semibold text-gray-800">{cerrado ? "Reabrir cadena" : "Cerrar cadena"}</h4>
+            <p className="text-sm text-gray-500">
+              {cerrado
+                ? "¿Reabrir a mano toda la cadena de este documento (Cotización, OT, Informes, OC y Factura relacionados)?"
+                : "¿Cerrar a mano toda la cadena de este documento (Cotización, OT, Informes, OC y Factura relacionados)?"}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmando(false)} disabled={enviando}
+                className="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition disabled:opacity-50">
+                Cancelar
+              </button>
+              <button onClick={confirmar} disabled={enviando}
+                className="text-sm bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 disabled:opacity-50 transition font-medium">
+                {enviando ? "Procesando…" : cerrado ? "Reabrir cadena" : "Cerrar cadena"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// Con la cadena cerrada, solo admin puede seguir editando/reabrir — el resto
+// de roles queda bloqueado (Alcoinsac no tiene un rol de excepción tipo
+// "jefatura" como Huaquian, así que se usa "admin" como override).
+export const bloqueadoPorCadenaCerrada = (estadoCadena, rolActual) =>
+  estadoCadena === "cerrado" && rolActual !== "admin";
+
 export function BannerAnulado({ motivo, por, fecha }) {
   return (
     <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">

@@ -273,6 +273,13 @@ export default function Dashboard() {
   const facturasSinPago = factsSinPagoLista.length;
   const valorizadoFacturasSinPago = factsSinPagoLista.reduce((s, f) => s + montoFactura(f), 0);
 
+  // La detracción se paga aparte (depósito al Banco de la Nación) y no forma
+  // parte de `estadoPago`/`montoPagado` del cliente — se rastrea con su
+  // propio flag `detraccionPagada` (ver Factura.js y ListaFacturas.jsx).
+  const detraccionesPorPagarLista = factsFiltradas.filter((f) => !f.anulado && Number(f.detraccion) > 0 && !f.detraccionPagada);
+  const detraccionesPorPagar = detraccionesPorPagarLista.length;
+  const facturasConDetraccion = factsFiltradas.filter((f) => Number(f.detraccion) > 0).length;
+
   // El modelo Factura no tiene campo `monto` (siempre daba 0) y `montoPagado`
   // es un registro de pago parcial, no el total de la factura — el monto
   // real de una factura es `totalAPagar` (con `total` como respaldo, mismo
@@ -334,9 +341,10 @@ export default function Dashboard() {
       </div>
 
       {/* KPIs — fila 2 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiCard label="Total pagado" value={fmt(totalPagado)} sub="suma de facturas pagadas"      color="green" />
         <KpiCard label="Por cobrar"   value={fmt(porCobrar)}   sub="suma de facturas sin pagar"    color="red"   />
+        <KpiCard label="Detracciones por pagar" value={detraccionesPorPagar} sub={`${facturasConDetraccion} facturas con detracción`} color="amber" />
       </div>
 
       {/* Contraste OC vs Cotizaciones */}

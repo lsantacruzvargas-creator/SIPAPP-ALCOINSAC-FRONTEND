@@ -56,7 +56,7 @@ const compararTexto = (na, nb) => {
   return String(nb).localeCompare(String(na));
 };
 
-function TablaFacturas({ titulo, acento, facturas, onSelect, handlePagoCheck, vacioMsg }) {
+function TablaFacturas({ titulo, acento, facturas, onSelect, handlePagoCheck, handleDetraccionPagoCheck, vacioMsg }) {
   const rolActual = getUsuario()?.rol;
   // Las anuladas siguen visibles en la tabla, pero no cuentan en los totales
   const noAnuladas = facturas.filter(f => !f.anulado);
@@ -140,8 +140,25 @@ function TablaFacturas({ titulo, acento, facturas, onSelect, handlePagoCheck, va
                     <td className={`${TD_NUM} text-gray-600`}>
                       {Number(f.total ?? 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
                     </td>
-                    <td className={`${TD_NUM} text-gray-400`}>
-                      {Number(f.detraccion ?? 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                    <td className={`${TD_NUM} text-gray-400`} onClick={e => e.stopPropagation()}>
+                      <div className="flex flex-col items-end gap-1">
+                        <span>{Number(f.detraccion ?? 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}</span>
+                        {Number(f.detraccion) > 0 && (() => {
+                          const bloqueadaDetraccion = f.detraccionPagada && rolActual !== "admin";
+                          const disabledDetraccion = f.anulado || bloqueadaDetraccion;
+                          return (
+                            <label className={`flex items-center gap-1 text-[11px] select-none ${f.detraccionPagada ? "text-emerald-600" : "text-gray-400"} ${disabledDetraccion ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+                              title={f.anulado ? "Factura anulada" : bloqueadaDetraccion ? "Solo un administrador puede deshacer un pago" : undefined}>
+                              <input type="checkbox"
+                                checked={!!f.detraccionPagada}
+                                disabled={disabledDetraccion}
+                                onChange={e => handleDetraccionPagoCheck(f._id, e.target.checked)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
+                              Detracción pagada
+                            </label>
+                          );
+                        })()}
+                      </div>
                     </td>
                     <td className={`${TD_NUM} font-bold text-gray-900`}>
                       {Number(f.totalAPagar ?? 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
@@ -204,6 +221,8 @@ export default function ListaFacturas() {
   const [crearOpen, setCrearOpen]     = useState(false);
   const [importarOpen, setImportarOpen] = useState(false);
   const [sortBy, setSortBy]           = useState("fecha");
+  const [confirmarDetraccion, setConfirmarDetraccion] = useState(null);
+  const [avisoPermiso, setAvisoPermiso] = useState("");
 
   const cargar = () =>
     Promise.all([
@@ -312,6 +331,40 @@ export default function ListaFacturas() {
     }
   };
 
+  // La detracción se paga aparte (depósito directo al Banco de la Nación),
+  // independiente del pago del cliente (`estadoPago`/`montoPagado` arriba).
+  const guardarDetraccionPago = async (id, pagada) => {
+    const factura = facturas.find(f => f._id === id);
+    if (!factura) return;
+    const previo = { detraccionPagada: factura.detraccionPagada };
+    setFacturas(prev => prev.map(f => f._id === id ? { ...f, detraccionPagada: pagada } : f));
+    try {
+      const res = await fetchAuth(`/facturas/${id}/detraccion-pagada`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pagada }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      setFacturas(prev => prev.map(f => f._id === id ? { ...f, ...previo } : f));
+      setAvisoPermiso("No se pudo guardar el estado de la detracción. Verifica que el servidor esté disponible e intenta de nuevo.");
+    }
+  };
+
+  const handleDetraccionPagoCheck = async (id, pagada) => {
+    const factura = facturas.find(f => f._id === id);
+    if (!factura) return;
+    if (pagada) {
+      setConfirmarDetraccion(id);
+      return;
+    }
+    if (getUsuario()?.rol !== "admin") {
+      setAvisoPermiso("Solo un administrador puede deshacer un pago.");
+      return;
+    }
+    await guardarDetraccionPago(id, false);
+  };
+
   const cerradas = filtradas.filter(f => f.estadoCadena === "cerrado");
   const abiertas = filtradas.filter(f => f.estadoCadena !== "cerrado");
   const hayFiltro = Object.values(filtros).some(Boolean);
@@ -416,6 +469,7 @@ export default function ListaFacturas() {
         facturas={abiertas}
         onSelect={setSeleccionada}
         handlePagoCheck={handlePagoCheck}
+        handleDetraccionPagoCheck={handleDetraccionPagoCheck}
         vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin facturas registradas"}
       />
 
@@ -425,6 +479,7 @@ export default function ListaFacturas() {
         facturas={cerradas}
         onSelect={setSeleccionada}
         handlePagoCheck={handlePagoCheck}
+        handleDetraccionPagoCheck={handleDetraccionPagoCheck}
         vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin facturas cerradas"}
       />
     </div>
@@ -456,6 +511,38 @@ export default function ListaFacturas() {
           setFacturas(prev => prev.map(f => f._id === actualizada._id ? actualizada : f));
         }}
       />
+    )}
+
+    {confirmarDetraccion && (
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]" onClick={() => setConfirmarDetraccion(null)}>
+        <div className="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <p className="text-sm text-gray-700 mb-4">¿Confirmas marcar la detracción de esta factura como pagada?</p>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setConfirmarDetraccion(null)}
+              className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
+              No
+            </button>
+            <button onClick={() => { const id = confirmarDetraccion; setConfirmarDetraccion(null); guardarDetraccionPago(id, true); }}
+              className="px-3 py-1.5 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
+              Sí, confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {avisoPermiso && (
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]" onClick={() => setAvisoPermiso("")}>
+        <div className="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <p className="text-sm text-gray-700 mb-4">{avisoPermiso}</p>
+          <div className="flex justify-end">
+            <button onClick={() => setAvisoPermiso("")}
+              className="px-3 py-1.5 text-sm rounded-lg bg-gray-700 text-white hover:bg-gray-800">
+              Entendido
+            </button>
+          </div>
+        </div>
+      </div>
     )}
     </>
   );
