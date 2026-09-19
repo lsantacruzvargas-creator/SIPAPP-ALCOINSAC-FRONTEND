@@ -124,6 +124,16 @@
   color: #6b7280 !important;
 }
 
+/* El icono y la píldora del correlativo (N° OT/Cotización/etc.) usan un
+   color de marca oscuro (text-sky-700, text-indigo-700...) pensado para
+   fondo blanco — el override general de .bg-white a un fondo oscuro (línea
+   ~76) los deja casi invisibles acá. Se fija el blanco real, igual que el
+   fondo pastel de la tarjeta, que también se mantiene igual en los 3 temas. */
+[data-theme="oscuro"] .tarjeta-relacion-color .bg-white,
+[data-theme="sepia"] .tarjeta-relacion-color .bg-white {
+  background-color: #fff !important;
+}
+
 [data-theme="oscuro"] .text-gray-900,
 [data-theme="oscuro"] .text-gray-800,
 [data-theme="oscuro"] .text-gray-700,

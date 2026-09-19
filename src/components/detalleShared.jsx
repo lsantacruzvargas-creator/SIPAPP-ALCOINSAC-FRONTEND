@@ -89,7 +89,6 @@ export function TarjetaRelacion({ tipo, codigo, numero, children, vacio, actual,
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t.label}</p>
-            <p className="font-mono text-sm font-bold text-gray-500 truncate">{codigo || "—"}</p>
           </div>
         </div>
         {numero && (
@@ -142,7 +141,6 @@ export function TarjetaRelacion({ tipo, codigo, numero, children, vacio, actual,
         </div>
         <div className="min-w-0">
           <p className={`text-[11px] font-semibold ${t.text} uppercase tracking-wide`}>{t.label}</p>
-          <p className="font-mono text-sm font-bold text-gray-800 truncate">{codigo || "—"}</p>
         </div>
       </div>
       {numero && (
