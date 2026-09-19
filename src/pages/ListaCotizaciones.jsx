@@ -19,6 +19,7 @@ const VISTAS = [
   { valor: "todas",      label: "Todas las tablas" },
   { valor: "sinOT",      label: "Cotizaciones sin OT" },
   { valor: "pendientes", label: "Cotizaciones pendientes de OC" },
+  { valor: "pendientesPago", label: "Cotizaciones pendientes (sin pagar)" },
   { valor: "conOC",      label: "Cotización con OC" },
   { valor: "cerradas",   label: "Cotizaciones cerradas" },
 ];
@@ -50,7 +51,7 @@ const numerosOT = (ots) =>
 // Sin ítems (p.ej. pseudo-fila de OT sin cotización) se asume PEN.
 const monedaCot = (c) => (c.items?.[0]?.moneda === "USD" ? "USD" : "PEN");
 
-function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, vacioMsg }) {
+function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, facturaPorNumDoc, onSelect, vacioMsg }) {
   return (
     <div className="mb-6">
       <div className="flex items-center gap-2 mb-3">
@@ -72,12 +73,13 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
               <th className={`${TH} text-left`}>Descripción</th>
               <th className={`${TH} text-right`}>Total sin IGV (S/)</th>
               <th className={`${TH} text-right`}>Total sin IGV ($)</th>
+              <th className={`${TH} text-center`}>Pagada</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {cotizaciones.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td>
+                <td colSpan={10} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td>
               </tr>
             ) : (
               cotizaciones.map((c) => (
@@ -123,6 +125,15 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
                     {monedaCot(c) === "USD"
                       ? Number(c.subtotal || Number(c.total) / 1.18).toLocaleString("es-PE", { minimumFractionDigits: 2 })
                       : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
+                    {c.numeroDocumento != null && facturaPorNumDoc?.get(c.numeroDocumento)?.estadoPago === "pagado" ? (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 uppercase tracking-wide whitespace-nowrap">
+                        Pagada
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </td>
                 </tr>
               ))
@@ -198,10 +209,11 @@ export default function ListaCotizaciones() {
       setOcPorCot(buildOcMap(ocs));
       setOcPorNumDoc(buildOcPorNumDoc(ocs));
       // Una cotización está "facturada" si su cadena (mismo numeroDocumento)
-      // tiene una factura con número de factura.
+      // tiene una factura con número de factura. Se guarda la factura entera
+      // (no solo el número) para poder leer también su estadoPago.
       setFacturaPorNumDoc(new Map(
         facts.filter((f) => f.numeroFactura && f.numeroDocumento != null)
-             .map((f) => [f.numeroDocumento, f.numeroFactura])
+             .map((f) => [f.numeroDocumento, f])
       ));
     });
 
@@ -253,6 +265,9 @@ export default function ListaCotizaciones() {
   const tieneOC = (c) =>
     ocPorCot.has(c._id) || (c.numeroDocumento != null && ocPorNumDoc.has(c.numeroDocumento));
 
+  const estaPagada = (c) =>
+    c.numeroDocumento != null && facturaPorNumDoc.get(c.numeroDocumento)?.estadoPago === "pagado";
+
   const filtradas = filas.filter((c) => {
     const fecha = new Date(c.fecha);
     const q = filtros.busqueda.toLowerCase();
@@ -267,7 +282,7 @@ export default function ListaCotizaciones() {
         c.numeroCotizacion?.toLowerCase().includes(q) ||
         numerosOT(otsPorCot.get(c._id))?.toLowerCase().includes(q) ||
         (ocPorCot.get(c._id)?.numeroOrden || ocPorNumDoc.get(c.numeroDocumento)?.numeroOrden)?.toLowerCase().includes(q) ||
-        facturaPorNumDoc.get(c.numeroDocumento)?.toLowerCase().includes(q) ||
+        facturaPorNumDoc.get(c.numeroDocumento)?.numeroFactura?.toLowerCase().includes(q) ||
         c.empresa?.razonSocial?.toLowerCase().includes(q) ||
         c.empresa?.ruc?.includes(q))
     );
@@ -289,6 +304,10 @@ export default function ListaCotizaciones() {
   const conOC = filtradas.filter((c) => !esCerrada(c) && tieneOC(c));
   // Cotizaciones (no pseudo-filas de OT) sin ninguna OT relacionada.
   const sinOT = filtradas.filter((c) => !c._esOT && !otsPorCot.get(c._id)?.length);
+  // "Pendientes (sin pagar)": cualquier cotización cuya factura no esté
+  // marcada como pagada — a diferencia de "pendientes" (de OC), acá el
+  // criterio es el estado de pago, no si tiene o no OC vinculada.
+  const pendientesPago = filtradas.filter((c) => !estaPagada(c));
   const hayFiltro = Object.values(filtros).some(Boolean);
   // Si hay una búsqueda de texto activa, no dejar que el selector de "vista"
   // esconda una tabla donde SÍ cae el resultado (ej. buscar un N° OT que
@@ -308,6 +327,7 @@ export default function ListaCotizaciones() {
     "Descripción":     c.titulo,
     "Total sin IGV (S/)": monedaCot(c) === "PEN" ? Number(c.subtotal || Number(c.total) / 1.18).toFixed(2) : "—",
     "Total sin IGV ($)":  monedaCot(c) === "USD" ? Number(c.subtotal || Number(c.total) / 1.18).toFixed(2) : "—",
+    "Pagada":           estaPagada(c) ? "Pagada" : "—",
   });
 
   const exportarExcel = () => {
@@ -425,6 +445,7 @@ export default function ListaCotizaciones() {
           acento="bg-blue-500"
           cotizaciones={filtradas}
           otsPorCot={otsPorCot}
+          facturaPorNumDoc={facturaPorNumDoc}
           onSelect={seleccionarFila}
           vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones registradas"}
         />
@@ -436,8 +457,21 @@ export default function ListaCotizaciones() {
           acento="bg-indigo-500"
           cotizaciones={sinOT}
           otsPorCot={otsPorCot}
+          facturaPorNumDoc={facturaPorNumDoc}
           onSelect={seleccionarFila}
           vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Todas las cotizaciones ya tienen OT"}
+        />
+      )}
+
+      {(vistaEfectiva === "todas" || vistaEfectiva === "pendientesPago") && (
+        <TablaCotizaciones
+          titulo="Cotizaciones pendientes (sin pagar)"
+          acento="bg-orange-500"
+          cotizaciones={pendientesPago}
+          otsPorCot={otsPorCot}
+          facturaPorNumDoc={facturaPorNumDoc}
+          onSelect={seleccionarFila}
+          vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "No hay cotizaciones pendientes de pago"}
         />
       )}
 
@@ -447,6 +481,7 @@ export default function ListaCotizaciones() {
           acento="bg-amber-500"
           cotizaciones={pendientes}
           otsPorCot={otsPorCot}
+          facturaPorNumDoc={facturaPorNumDoc}
           onSelect={seleccionarFila}
           vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones pendientes"}
         />
@@ -458,6 +493,7 @@ export default function ListaCotizaciones() {
           acento="bg-emerald-500"
           cotizaciones={conOC}
           otsPorCot={otsPorCot}
+          facturaPorNumDoc={facturaPorNumDoc}
           onSelect={seleccionarFila}
           vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones con OC"}
         />
@@ -469,6 +505,7 @@ export default function ListaCotizaciones() {
           acento="bg-gray-500"
           cotizaciones={cerradas}
           otsPorCot={otsPorCot}
+          facturaPorNumDoc={facturaPorNumDoc}
           onSelect={seleccionarFila}
           vacioMsg={hayFiltro ? "Sin resultados para los filtros aplicados" : "Sin cotizaciones cerradas"}
         />
