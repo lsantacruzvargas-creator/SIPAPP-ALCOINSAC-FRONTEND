@@ -20,6 +20,7 @@ export default function DetalleDocumento({
   if (vista.tipo === "cotizacion") {
     return (
       <DetalleCotizacion
+        key={vista.data._id}
         cotizacion={vista.data}
         onNavegar={navegar}
         onClose={onClose}
@@ -31,6 +32,7 @@ export default function DetalleDocumento({
   if (vista.tipo === "ot") {
     return (
       <DetalleOrdenTrabajo
+        key={vista.data._id}
         orden={vista.data}
         onNavegar={navegar}
         onClose={onClose}
@@ -42,6 +44,7 @@ export default function DetalleDocumento({
   if (vista.tipo === "oc") {
     return (
       <DetalleOrdenCompra
+        key={vista.data._id}
         orden={vista.data}
         facturaVinculada={vista.extra}
         onNavegar={navegar}
@@ -53,6 +56,7 @@ export default function DetalleDocumento({
 
   return (
     <DetalleFactura
+      key={vista.data._id}
       factura={vista.data}
       onNavegar={navegar}
       onClose={onClose}
