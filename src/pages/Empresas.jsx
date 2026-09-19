@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchAuth } from "../utils/fetchAuth";
+import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import ModalEmpresa from "../components/ModalEmpresa";
 
 export default function Empresas() {
@@ -7,6 +7,24 @@ export default function Empresas() {
   const [filtro, setFiltro] = useState("");
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
+  const [eliminando, setEliminando] = useState(null);
+  const [borrando, setBorrando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState("");
+  const esAdmin = getUsuario()?.rol === "admin";
+
+  const eliminar = async () => {
+    setBorrando(true);
+    setErrorEliminar("");
+    const res = await fetchAuth(`/empresas/${eliminando._id}`, { method: "DELETE" });
+    if (res.ok) {
+      setEmpresas((prev) => prev.filter((e) => e._id !== eliminando._id));
+      setEliminando(null);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setErrorEliminar(data.mensaje || "No se pudo eliminar la empresa.");
+    }
+    setBorrando(false);
+  };
 
   const cargar = () =>
     fetchAuth("/empresas").then((res) => res.ok && res.json().then(setEmpresas));
@@ -86,6 +104,14 @@ export default function Empresas() {
                     >
                       Editar
                     </button>
+                    {esAdmin && (
+                      <button
+                        onClick={() => { setEliminando(e); setErrorEliminar(""); }}
+                        className="text-red-500 hover:underline text-xs ml-3"
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -104,6 +130,28 @@ export default function Empresas() {
             setModal(false);
           }}
         />
+      )}
+
+      {eliminando && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <h4 className="font-semibold text-gray-800">Eliminar empresa</h4>
+            <p className="text-sm text-gray-500">
+              ¿Eliminar permanentemente <strong>{eliminando.alias || eliminando.razonSocial}</strong>? Esta acción no se puede deshacer.
+            </p>
+            {errorEliminar && <p className="text-sm text-red-600">{errorEliminar}</p>}
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setEliminando(null)} disabled={borrando}
+                className="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition disabled:opacity-50">
+                Cancelar
+              </button>
+              <button onClick={eliminar} disabled={borrando}
+                className="text-sm bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition font-medium">
+                {borrando ? "Eliminando…" : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
