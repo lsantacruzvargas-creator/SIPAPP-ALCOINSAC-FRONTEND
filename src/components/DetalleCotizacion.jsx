@@ -43,6 +43,9 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
     codigoSap: inicial.codigoSap || "",
     fechaSalida: inicial.fechaSalida ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
+    // Una cotización no mezcla monedas entre ítems — el primer ítem representa
+    // a toda la cotización (mismo criterio que cotizacionPdf.js).
+    moneda: inicial.items?.[0]?.moneda === "USD" ? "USD" : "PEN",
   });
   const [calc, setCalc] = useState(() => calcular(subtotalInicial));
   const [items, setItems] = useState(() => (inicial.items || []).map(itemDesdeDb));
@@ -118,6 +121,9 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
       ...(name === "empresa" ? { planta: "", contactoNombre: "", lugarEntrega: "" } : {}),
       ...(name === "planta" ? { contactoNombre: "", lugarEntrega: value } : {}),
     }));
+    if (name === "moneda") {
+      setItems(prev => prev.map(i => ({ ...i, moneda: value })));
+    }
   };
 
   const toggleSeleccion = (idx) => setSeleccionados(prev => {
@@ -511,10 +517,17 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
                   {OPCIONES_FORMA_PAGO.map((op) => <option key={op} value={op} />)}
                 </datalist>
               </div>
-              <div hidden>
-                <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
-                <input type="date" name="fechaRecibida" value={form.fechaRecibida} onChange={handleChange} className={INP} />
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Moneda</label>
+                <select name="moneda" value={form.moneda} onChange={handleChange} disabled={!puedeEditar || cot.anulado} className={INP}>
+                  <option value="PEN">Soles (S/)</option>
+                  <option value="USD">Dólares ($)</option>
+                </select>
               </div>
+            </div>
+            <div hidden>
+              <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
+              <input type="date" name="fechaRecibida" value={form.fechaRecibida} onChange={handleChange} className={INP} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -660,7 +673,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
         </div>
 
         {/* Ítems — ancho completo, debajo de Datos + Relaciones */}
-        <div className="max-w-6xl mx-auto px-8 pb-8">
+        <div className="max-w-[70vw] mx-auto px-8 pb-8">
           <TablaItemsCotizacion
             items={items}
             onItemsChange={setItems}
@@ -675,6 +688,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
             onGenerarOT={generarOTSeleccionados}
             generando={generandoOT}
             onVerOT={(o) => onNavegar?.({ tipo: "ot", data: ots.find(x => x._id === o._id) || o })}
+            monedaDefecto={form.moneda}
           />
         </div>
       </div>

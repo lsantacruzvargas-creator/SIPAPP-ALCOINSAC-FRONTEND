@@ -18,7 +18,7 @@ const FORM_VACIO = {
   titulo: "", encargado: "", planta: "", contactoNombre: "", condicionPago: "",
   plazoEntrega: "", lugarEntrega: "", validezOferta: "",
   numeroGuiaEmision: "", numeroGuiaRemision: "", codigoSap: "", fechaSalida: "",
-  subtotal: "",
+  subtotal: "", moneda: "PEN",
 };
 
 const PASOS_VACIOS = [
@@ -65,6 +65,12 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
       ...(name === "empresa" ? { planta: "", contactoNombre: "", lugarEntrega: "" } : {}),
       ...(name === "planta" ? { contactoNombre: "", lugarEntrega: value } : {}),
     }));
+    // La cotización no mezcla monedas entre ítems — al cambiar el select se
+    // propaga a todos los ítems ya cargados (los nuevos la heredan vía
+    // monedaDefecto en TablaItemsCotizacion).
+    if (name === "moneda") {
+      setItems(prev => prev.map(i => ({ ...i, moneda: value })));
+    }
   };
 
   const subtotalItems = parseFloat(items.reduce((acc, i) => acc + calcSubtotal(i), 0).toFixed(2));
@@ -259,10 +265,17 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
                   {OPCIONES_FORMA_PAGO.map((op) => <option key={op} value={op} />)}
                 </datalist>
               </div>
-              <div hidden>
-                <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
-                <input type="date" name="fechaRecibida" value={form.fechaRecibida} onChange={handleChange} className={INP} />
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Moneda</label>
+                <select name="moneda" value={form.moneda} onChange={handleChange} className={INP}>
+                  <option value="PEN">Soles (S/)</option>
+                  <option value="USD">Dólares ($)</option>
+                </select>
               </div>
+            </div>
+            <div hidden>
+              <label className="text-xs text-gray-500 block mb-1">Fecha recibida</label>
+              <input type="date" name="fechaRecibida" value={form.fechaRecibida} onChange={handleChange} className={INP} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -357,7 +370,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
         </div>
 
         {/* Ítems — ancho completo, debajo de Datos + Relaciones */}
-        <div className="max-w-6xl mx-auto px-8 pb-8">
+        <div className="max-w-[70vw] mx-auto px-8 pb-8">
           <TablaItemsCotizacion
             items={items}
             onItemsChange={setItems}
@@ -367,6 +380,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
             intentoGuardar={intentoGuardar}
             totalesMostrados={totalesMostrados}
             seleccionables={false}
+            monedaDefecto={form.moneda}
           />
         </div>
       </div>
