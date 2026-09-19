@@ -184,7 +184,10 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     // encabezado y pie (top+bottom+left+right) — solo las FILAS DEL CUERPO
     // pierden las líneas horizontales entre sí (top/bottom en 0, se
     // mantienen las verticales left/right para separar columnas).
-    styles: { fontSize: 9, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: { top: 0, bottom: 0, left: 0.1, right: 0.1 }, fillColor: false },
+    // cellPadding reducido en vertical (default de autotable ~5) — con las
+    // filas del cuerpo sin borde horizontal propio, ese padding se veía como
+    // un espacio en blanco entre ítems.
+    styles: { fontSize: 9, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: { top: 0, bottom: 0, left: 0.1, right: 0.1 }, fillColor: false, cellPadding: { top: 1.5, right: 2, bottom: 1.5, left: 2 } },
     headStyles: { fontSize: 8, fontStyle: "bold", textColor: [0, 0, 0], fillColor: false, lineColor: [0, 0, 0], lineWidth: 0.1 },
     footStyles: { halign: "right", fontStyle: "bold", textColor: [0, 0, 0], fillColor: false, lineColor: [0, 0, 0], lineWidth: 0.1 },
     alternateRowStyles: { fillColor: false },
@@ -258,19 +261,39 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   });
 
   // ─── Condiciones comerciales ───
-  let y2 = doc.lastAutoTable.finalY + 10;
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text("Condiciones comerciales:", 14, y2);
-  y2 += 6;
-
-  doc.setFont("helvetica", "normal");
+  // Bloque de alto fijo y calculable (mismo contenido siempre) — si no entra
+  // completo antes del pie de logos, se salta de página entero en vez de
+  // partirlo: antes se escribía donde cayera y terminaba encimado con los
+  // logos, que se dibujan en una posición fija de la página "actual".
   const condiciones = [
     ["Forma de pago", cotizacion.condicionPago],
     ["Plazo de entrega", cotizacion.plazoEntrega],
     ["Lugar de entrega", cotizacion.lugarEntrega],
     ["Validez de la oferta", cotizacion.validezOferta],
   ];
+  const cierre = "Sin otro en particular quedamos a la espera de su grata orden de compra.";
+  const cierreLineas = doc.splitTextToSize(cierre, PAGE_R - 14);
+  const altoBloqueCondiciones =
+    6 +                          // "Condiciones comerciales:" + salto
+    condiciones.length * 5 +     // filas de condiciones
+    5 +                          // espacio antes del cierre
+    cierreLineas.length * 5 + 10 + // párrafo de cierre + espacio
+    12 + 5 + 5 + 5;               // "Atentamente," + firma (3 líneas)
+  const pageH = doc.internal.pageSize.getHeight();
+  const altoReservadoLogos = 36; // altoLogo(20) + margen inferior(8) + aire
+
+  let y2 = doc.lastAutoTable.finalY + 10;
+  if (y2 + altoBloqueCondiciones > pageH - altoReservadoLogos) {
+    doc.addPage();
+    y2 = 20;
+  }
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("Condiciones comerciales:", 14, y2);
+  y2 += 6;
+
+  doc.setFont("helvetica", "normal");
   condiciones.forEach(([label, valor]) => {
     doc.text(label, 14, y2);
     doc.text(":", 50, y2);
@@ -279,8 +302,6 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   });
   y2 += 5;
 
-  const cierre = "Sin otro en particular quedamos a la espera de su grata orden de compra.";
-  const cierreLineas = doc.splitTextToSize(cierre, PAGE_R - 14);
   doc.text(cierreLineas, 14, y2);
   y2 += cierreLineas.length * 5 + 10;
 
