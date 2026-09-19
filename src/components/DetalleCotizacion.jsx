@@ -63,6 +63,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   const [fechaPagoCierre, setFechaPagoCierre] = useState(() => new Date().toISOString().slice(0, 10));
   const [numeroFacturaCierre, setNumeroFacturaCierre] = useState("");
   const [cerrandoCadena, setCerrandoCadena] = useState(false);
+  const [duplicando, setDuplicando] = useState(false);
   const puedeEditar = ["admin", "asistente"].includes(getUsuario()?.rol);
   const rolActual = getUsuario()?.rol;
   const esAdmin = rolActual === "admin";
@@ -275,6 +276,20 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     }
   };
 
+  // Réplica completa de la cotización (campos + ítems) con código/N° documento
+  // nuevos y sin nada vinculado — ver Backend/src/routes/cotizaciones.js.
+  const duplicar = async () => {
+    setDuplicando(true);
+    const res = await fetchAuth(`/cotizaciones/${cot._id}/duplicar`, { method: "POST" });
+    if (res.ok) {
+      const nueva = await res.json();
+      onNavegar?.({ tipo: "cotizacion", data: nueva });
+    } else {
+      setError("Error al duplicar la cotización.");
+      setDuplicando(false);
+    }
+  };
+
   const toggleCerrarCadena = async (cerrado, fechaPago, numeroFactura) => {
     const res = await fetchAuth(`/cotizaciones/${cot._id}/cerrar-cadena`, {
       method: "PATCH",
@@ -345,6 +360,12 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               className="bg-white/15 text-white text-sm px-4 py-2 rounded-lg hover:bg-white/25 transition font-medium shrink-0">
               Exportar PDF
             </button>
+            {puedeEditar && (
+              <button onClick={duplicar} disabled={duplicando}
+                className="bg-white/15 text-white text-sm px-4 py-2 rounded-lg hover:bg-white/25 disabled:opacity-50 transition font-medium shrink-0">
+                {duplicando ? "Duplicando…" : "Duplicar"}
+              </button>
+            )}
             {!cot.anulado && puedeEditar && <BotonAnular onAnular={anular} />}
             {!cot.anulado && esAdmin && (cadenaCerrada
               ? <BotonCerrarCadena cerrado onToggle={toggleCerrarCadena} />

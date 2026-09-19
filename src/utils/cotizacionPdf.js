@@ -312,5 +312,9 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     });
   }
 
-  doc.save(`Cotizacion-${cotizacion.numeroCotizacion || cotizacion.codigo}.pdf`);
+  // Windows no permite \ / : * ? " < > | en nombres de archivo — empresa y
+  // título son texto libre, así que se limpian antes de armar el nombre.
+  const limpiarNombre = (s) => String(s || "").replace(/[\\/:*?"<>|]/g, "").trim();
+  const numero = cotizacion.numeroCotizacion || cotizacion.codigo;
+  doc.save(`COT_${numero}-${limpiarNombre(empresa?.razonSocial)}_${limpiarNombre(cotizacion.titulo)}.pdf`);
 };

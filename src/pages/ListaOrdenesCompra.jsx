@@ -35,6 +35,12 @@ const compararTexto = (na, nb) => {
   return String(nb).localeCompare(String(na));
 };
 
+// La OC no tiene moneda propia — se deriva de la cotización vinculada (misma
+// convención que cotizacionPdf.js: no se mezclan monedas entre ítems, así
+// que el primer ítem representa a toda la cotización). Sin cotización o sin
+// ítems, se asume PEN (todo lo histórico antes de soportar USD era en soles).
+const monedaOC = (o) => (o.cotizacion?.items?.[0]?.moneda === "USD" ? "USD" : "PEN");
+
 function TablaOC({ titulo, acento, ordenes, otMap, factMap, factByOCMap, otNumeroMap, onSelect, subirDocumento, vacioMsg }) {
   return (
     <div className="mb-6">
@@ -57,6 +63,7 @@ function TablaOC({ titulo, acento, ordenes, otMap, factMap, factByOCMap, otNumer
               <th className={`${TH} text-left`}>Encargado</th>
               <th className={`${TH} text-left`}>Título</th>
               <th className={`${TH} text-right`}>Total sin IGV (S/)</th>
+              <th className={`${TH} text-right`}>Total sin IGV ($)</th>
               <th className={`${TH} text-center`}>Fecha</th>
               <th className={`${TH} text-center`}>Estado OT</th>
               <th className={`${TH} text-center`}>Estado Pago</th>
@@ -65,7 +72,7 @@ function TablaOC({ titulo, acento, ordenes, otMap, factMap, factByOCMap, otNumer
           </thead>
           <tbody className="divide-y divide-gray-100">
             {ordenes.length === 0 ? (
-              <tr><td colSpan={13} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td></tr>
+              <tr><td colSpan={14} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td></tr>
             ) : ordenes.map((o) => {
               const cotId = o.cotizacion?._id || o.cotizacion;
               const estadoActual = otMap[cotId];
@@ -94,7 +101,10 @@ function TablaOC({ titulo, acento, ordenes, otMap, factMap, factByOCMap, otNumer
                   <td className="px-4 py-3.5 text-gray-600">{o.encargado || <span className="text-gray-300">—</span>}</td>
                   <td className="px-4 py-3.5 text-gray-600">{o.titulo}</td>
                   <td className="px-4 py-3.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
-                    {Number(o.monto).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                    {monedaOC(o) === "PEN" ? Number(o.monto).toLocaleString("es-PE", { minimumFractionDigits: 2 }) : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
+                    {monedaOC(o) === "USD" ? Number(o.monto).toLocaleString("es-PE", { minimumFractionDigits: 2 }) : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3.5 text-center text-gray-500 whitespace-nowrap">
                     {new Date(o.fecha).toLocaleDateString("es-PE")}
@@ -281,7 +291,8 @@ export default function ListaOrdenesCompra() {
       "Planta":           o.planta || "—",
       "Encargado":        o.encargado || "—",
       "Título":           o.titulo || "—",
-      "Total sin IGV":    Number(o.monto).toFixed(2),
+      "Total sin IGV (S/)": monedaOC(o) === "PEN" ? Number(o.monto).toFixed(2) : "—",
+      "Total sin IGV ($)":  monedaOC(o) === "USD" ? Number(o.monto).toFixed(2) : "—",
       "Fecha":            new Date(o.fecha).toLocaleDateString("es-PE"),
       "Estado OT":        estadoActual || "Sin OT",
       "Estado Pago":      factura?.estadoPago || "—",

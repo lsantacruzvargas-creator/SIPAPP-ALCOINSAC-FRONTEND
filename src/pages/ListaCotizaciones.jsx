@@ -45,6 +45,11 @@ const compararTexto = (na, nb) => {
 const numerosOT = (ots) =>
   ots?.length ? ots.map((o) => o.numeroOT).filter(Boolean).join(", ") : null;
 
+// Convención ya usada en cotizacionPdf.js: una cotización no mezcla monedas
+// entre ítems, así que la moneda del primer ítem representa a toda la fila.
+// Sin ítems (p.ej. pseudo-fila de OT sin cotización) se asume PEN.
+const monedaCot = (c) => (c.items?.[0]?.moneda === "USD" ? "USD" : "PEN");
+
 function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, vacioMsg }) {
   return (
     <div className="mb-6">
@@ -66,12 +71,13 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
               <th className={`${TH} text-left`}>Encargado</th>
               <th className={`${TH} text-left`}>Descripción</th>
               <th className={`${TH} text-right`}>Total sin IGV (S/)</th>
+              <th className={`${TH} text-right`}>Total sin IGV ($)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {cotizaciones.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td>
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">{vacioMsg}</td>
               </tr>
             ) : (
               cotizaciones.map((c) => (
@@ -109,7 +115,14 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, onSelect, 
                   <td className="px-4 py-3.5 text-gray-600">{c.encargado || <span className="text-gray-300">—</span>}</td>
                   <td className="px-4 py-3.5 text-gray-700">{c.titulo}</td>
                   <td className="px-4 py-3.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
-                    {Number(c.subtotal || Number(c.total) / 1.18).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                    {monedaCot(c) === "PEN"
+                      ? Number(c.subtotal || Number(c.total) / 1.18).toLocaleString("es-PE", { minimumFractionDigits: 2 })
+                      : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
+                    {monedaCot(c) === "USD"
+                      ? Number(c.subtotal || Number(c.total) / 1.18).toLocaleString("es-PE", { minimumFractionDigits: 2 })
+                      : <span className="text-gray-300">—</span>}
                   </td>
                 </tr>
               ))
@@ -293,7 +306,8 @@ export default function ListaCotizaciones() {
     "Planta":          c.planta || "—",
     "Encargado":       c.encargado || "—",
     "Descripción":     c.titulo,
-    "Total sin IGV":   Number(c.subtotal || Number(c.total) / 1.18).toFixed(2),
+    "Total sin IGV (S/)": monedaCot(c) === "PEN" ? Number(c.subtotal || Number(c.total) / 1.18).toFixed(2) : "—",
+    "Total sin IGV ($)":  monedaCot(c) === "USD" ? Number(c.subtotal || Number(c.total) / 1.18).toFixed(2) : "—",
   });
 
   const exportarExcel = () => {

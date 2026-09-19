@@ -94,7 +94,7 @@ export default function TablaItemsCotizacion({
 
   const agregarItemManual = () => onItemsChange([...items, itemVacioServicio()]);
 
-  const colsIzquierda = (puedeEditar ? 4 : 3) + (seleccionables ? 1 : 0);
+  const colsIzquierda = (puedeEditar ? 4 : 3) + 1 + (seleccionables ? 1 : 0);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -142,6 +142,7 @@ export default function TablaItemsCotizacion({
               <th className="px-3 py-3 text-left">Descripción *</th>
               <th className="px-3 py-3 text-center w-24">Cantidad *</th>
               <th className="px-3 py-3 text-right w-32">Precio unitario *</th>
+              <th className="px-3 py-3 text-center w-20">Moneda</th>
               <th className="px-3 py-3 text-right w-32">Precio total</th>
               {puedeEditar && <th className="px-3 py-3 w-10"><span className="sr-only">Quitar</span></th>}
             </tr>
@@ -149,7 +150,7 @@ export default function TablaItemsCotizacion({
           <tbody className="divide-y divide-gray-100">
             {items.length === 0 ? (
               <tr>
-                <td colSpan={(puedeEditar ? 6 : 5) + (seleccionables ? 1 : 0)} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={(puedeEditar ? 7 : 6) + (seleccionables ? 1 : 0)} className="px-4 py-8 text-center text-gray-400">
                   Sin ítems agregados{puedeAgregar
                     ? (tipo === "servicio"
                       ? " — usa “+ Agregar ítem manual” para escribir uno o “+ Agregar ítem de plantilla” para elegir del catálogo de servicios."
@@ -228,6 +229,18 @@ export default function TablaItemsCotizacion({
                     <input type="number" min="0" step="0.01" value={item.precio} disabled={!puedeEditar}
                       onChange={(e) => handleItem(item._key, "precio", parseFloat(e.target.value) || 0)}
                       className={`w-full text-right ${puedeEditar ? INP : "bg-transparent border-transparent text-sm px-2 py-1"} ${intentoGuardar && precioInvalido(item) ? "border-red-400 ring-1 ring-red-300" : ""}`} />
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    {puedeEditar ? (
+                      <select value={item.moneda} disabled={!puedeEditar}
+                        onChange={(e) => handleItem(item._key, "moneda", e.target.value)}
+                        className={INP}>
+                        <option value="PEN">S/</option>
+                        <option value="USD">$</option>
+                      </select>
+                    ) : (
+                      <span className="text-sm text-gray-600">{item.moneda === "USD" ? "$" : "S/"}</span>
+                    )}
                   </td>
                   <td className="px-3 py-3 text-right font-medium text-gray-700 tabular-nums">
                     {calcSubtotal(item).toFixed(2)}

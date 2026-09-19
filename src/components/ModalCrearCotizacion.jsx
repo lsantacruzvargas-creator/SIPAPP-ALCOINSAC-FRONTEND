@@ -27,6 +27,7 @@ export default function ModalCrearCotizacion({ orden, onClose, onCreada }) {
   const guardar = async () => {
     setGuardando(true);
     setError("");
+    const montoItem = Number(subtotal) || 0;
     const body = {
       numeroDocumento: orden.numeroDocumento,
       empresa:         emp?._id,
@@ -39,6 +40,9 @@ export default function ModalCrearCotizacion({ orden, onClose, onCreada }) {
       numeroGuiaRemision: orden.numeroGuiaRemision,
       codigoSap:          orden.codigoSap,
       fechaSalida:        orden.fechaSalida,
+      // Primer ítem precargado con el título de la OT — evita reescribirlo a
+      // mano en la tabla venta/servicio al abrir la cotización recién creada.
+      items: [{ descripcion: orden.titulo, cantidad: 1, precio: montoItem, subtotal: montoItem, moneda: "PEN" }],
       ...calcular(subtotal),
     };
     if (!body.empresa) delete body.empresa;
