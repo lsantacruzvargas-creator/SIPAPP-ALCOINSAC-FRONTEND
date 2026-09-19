@@ -114,7 +114,7 @@ export default function Reportes() {
       ["OT sin Cotizacion",   data.otSinCotizacion.map(filaOtSinCotizacion)],
       ["Facturas sin Pago",   data.facturasSinPago.map(filaFacturaSinPago)],
     ].forEach(([nombre, filas]) => {
-      const ws = XLSX.utils.json_to_sheet(filas);
+      const ws = XLSX.utils.json_to_sheet(filasExcelSeguras(filas));
       XLSX.utils.book_append_sheet(wb, ws, nombre);
     });
 

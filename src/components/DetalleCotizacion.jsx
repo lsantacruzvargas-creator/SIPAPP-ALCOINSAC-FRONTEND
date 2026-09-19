@@ -28,14 +28,18 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     empresa: inicial.empresa?._id || "",
     tipo: inicial.tipo || "venta",
     condicionPago: inicial.condicionPago || "",
-    plazoEntrega: inicial.plazoEntrega || "",
+    // Antes estos 3 solo se mostraban con un valor por defecto en el input
+    // (value={form.x || "..."}) sin escribirlo nunca en el estado real, así
+    // que si el usuario no los tocaba, el PDF exportaba "-" aunque el form
+    // se viera lleno. Ahora el default queda en el estado desde el inicio.
+    plazoEntrega: inicial.plazoEntrega || "2 días recibida la OC",
     lugarEntrega: inicial.lugarEntrega || "",
-    validezOferta: inicial.validezOferta || "",
+    validezOferta: inicial.validezOferta || "15 días",
     fecha: inicial.fecha ? new Date(inicial.fecha).toISOString().split("T")[0] : "",
     fechaRecibida: inicial.fechaRecibida ? new Date(inicial.fechaRecibida).toISOString().split("T")[0] : "",
     titulo: inicial.titulo || "",
     numeroCotizacion: inicial.numeroCotizacion || "",
-    atencion: inicial.atencion || "",
+    atencion: inicial.atencion || "Area de compras",
     encargado: inicial.encargado || "",
     planta: inicial.planta || "",
     contactoNombre: inicial.contactoNombre || "",
@@ -473,7 +477,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Atención</label>
-                <input name="atencion" value={form.atencion||"Area de compras"} onChange={handleChange}
+                <input name="atencion" value={form.atencion} onChange={handleChange}
                   placeholder="Ej. Área de Compras" className={INP} />
               </div>
               <div>
@@ -533,7 +537,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Plazo de entrega</label>
-                <input name="plazoEntrega" value={form.plazoEntrega||"2 días recibida la OC"} onChange={handleChange}
+                <input name="plazoEntrega" value={form.plazoEntrega} onChange={handleChange}
                   placeholder="Ej. 2 días de recibida su O/C." className={INP} />
               </div>
             </div>
@@ -549,7 +553,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Validez de la oferta</label>
-                <input name="validezOferta" value={form.validezOferta||"15 días"} onChange={handleChange}
+                <input name="validezOferta" value={form.validezOferta} onChange={handleChange}
                   placeholder="Ej. 15 días" className={INP} />
               </div>
             </div>

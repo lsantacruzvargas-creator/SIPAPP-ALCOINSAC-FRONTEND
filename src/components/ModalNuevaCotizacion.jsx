@@ -12,11 +12,14 @@ function calcular(sub) {
   return { subtotal: s, igv, total: Math.round((s + igv) * 100) / 100 };
 }
 
+// plazoEntrega/validezOferta/atencion arrancan con su texto por defecto ya
+// en el estado (no solo mostrado en el input) — si no, quedaban vacíos en
+// el PDF aunque el form se viera lleno con el valor por defecto.
 const FORM_VACIO = {
-  empresa: "", tipo: "venta", numeroCotizacion: "", atencion: "",
+  empresa: "", tipo: "venta", numeroCotizacion: "", atencion: "Area de compras",
   fecha: new Date().toISOString().split("T")[0], fechaRecibida: "",
   titulo: "", encargado: "", planta: "", contactoNombre: "", condicionPago: "",
-  plazoEntrega: "", lugarEntrega: "", validezOferta: "",
+  plazoEntrega: "2 días recibida la OC", lugarEntrega: "", validezOferta: "15 días",
   numeroGuiaEmision: "", numeroGuiaRemision: "", codigoSap: "", fechaSalida: "",
   subtotal: "", moneda: "PEN",
 };
@@ -228,7 +231,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Atención</label>
-                <input name="atencion" value={form.atencion||"Area de compras"} onChange={handleChange} placeholder="Ej. Área de Compras" className={INP} />
+                <input name="atencion" value={form.atencion} onChange={handleChange} placeholder="Ej. Área de Compras" className={INP} />
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Tipo</label>
@@ -281,7 +284,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Plazo de entrega</label>
-                <input name="plazoEntrega" value={form.plazoEntrega||"2 días recibida la OC"} onChange={handleChange} placeholder="Ej. 2 días de recibida su O/C." className={INP} />
+                <input name="plazoEntrega" value={form.plazoEntrega} onChange={handleChange} placeholder="Ej. 2 días de recibida su O/C." className={INP} />
               </div>
             </div>
 
@@ -295,7 +298,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Validez de la oferta</label>
-                <input name="validezOferta" value={form.validezOferta||"15 días"} onChange={handleChange} placeholder="Ej. 15 días" className={INP} />
+                <input name="validezOferta" value={form.validezOferta} onChange={handleChange} placeholder="Ej. 15 días" className={INP} />
               </div>
             </div>
 
