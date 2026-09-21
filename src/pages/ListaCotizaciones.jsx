@@ -6,6 +6,7 @@ import ModalImportarExcel, { COLS_COT_OT } from "../components/ModalImportarExce
 import ModalNuevaOT from "../components/ModalNuevaOT";
 import ModalNuevaCotizacion from "../components/ModalNuevaCotizacion";
 import * as XLSX from "xlsx";
+import { filasExcelSeguras } from "../utils/excelSeguro";
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -338,7 +339,7 @@ export default function ListaCotizaciones() {
       ["Cerradas", cerradas],
       ["Sin OT", sinOT],
     ].forEach(([nombre, lista]) => {
-      const ws = XLSX.utils.json_to_sheet(lista.map(filaCotizacion));
+      const ws = XLSX.utils.json_to_sheet(filasExcelSeguras(lista.map(filaCotizacion)));
       XLSX.utils.book_append_sheet(wb, ws, nombre);
     });
     XLSX.writeFile(wb, "cotizaciones.xlsx");

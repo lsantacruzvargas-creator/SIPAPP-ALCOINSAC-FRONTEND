@@ -5,6 +5,7 @@ import ModalCrearFactura  from "../components/ModalCrearFactura";
 import ModalImportarExcel, { COLS_FACTURAS } from "../components/ModalImportarExcel";
 import { DotChip, badgePago, dotPago } from "../components/detalleShared";
 import * as XLSX from "xlsx";
+import { filasExcelSeguras } from "../utils/excelSeguro";
 
 const MESES = [
   "Enero","Febrero","Marzo","Abril","Mayo","Junio",
@@ -406,7 +407,7 @@ export default function ListaFacturas() {
       ["Facturas", abiertas],
       ["Facturas cerradas", cerradas],
     ].forEach(([nombre, lista]) => {
-      const ws = XLSX.utils.json_to_sheet(lista.map(filaFactura));
+      const ws = XLSX.utils.json_to_sheet(filasExcelSeguras(lista.map(filaFactura)));
       XLSX.utils.book_append_sheet(wb, ws, nombre);
     });
     XLSX.writeFile(wb, "facturas.xlsx");

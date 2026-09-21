@@ -5,6 +5,7 @@ import ModalCrearOrdenCompra   from "../components/ModalCrearOrdenCompra";
 import ModalImportarExcel, { COLS_OC, COLS_CADENA } from "../components/ModalImportarExcel";
 import { DotChip, badgeOT, badgePago, dotOT, dotPago } from "../components/detalleShared";
 import * as XLSX from "xlsx";
+import { filasExcelSeguras } from "../utils/excelSeguro";
 
 const ESTADOS_OT = ["", "pendiente", "en progreso", "completado"];
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -306,7 +307,7 @@ export default function ListaOrdenesCompra() {
       ["Con factura", conFactura],
       ["Cerradas", cerradas],
     ].forEach(([nombre, lista]) => {
-      const ws = XLSX.utils.json_to_sheet(lista.map(filaOC));
+      const ws = XLSX.utils.json_to_sheet(filasExcelSeguras(lista.map(filaOC)));
       XLSX.utils.book_append_sheet(wb, ws, nombre);
     });
     XLSX.writeFile(wb, "ordenes-de-compra.xlsx");

@@ -4,6 +4,7 @@ import DetalleDocumento from "../components/DetalleDocumento";
 import ModalNuevaOT from "../components/ModalNuevaOT";
 import { DotChip, badgeOT, dotOT } from "../components/detalleShared";
 import * as XLSX from "xlsx";
+import { filasExcelSeguras } from "../utils/excelSeguro";
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -220,7 +221,7 @@ export default function ListaOrdenesTrabajo() {
       ["Pendientes", pendientes],
       ["Cerradas", cerradas],
     ].forEach(([nombre, lista]) => {
-      const ws = XLSX.utils.json_to_sheet(lista.map(filaOT));
+      const ws = XLSX.utils.json_to_sheet(filasExcelSeguras(lista.map(filaOT)));
       XLSX.utils.book_append_sheet(wb, ws, nombre);
     });
     XLSX.writeFile(wb, "ordenes-de-trabajo.xlsx");

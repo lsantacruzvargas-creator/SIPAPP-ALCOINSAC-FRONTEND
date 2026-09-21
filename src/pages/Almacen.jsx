@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
 import * as XLSX from "xlsx";
+import { filasExcelSeguras } from "../utils/excelSeguro";
 
 const INP =
   "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white";
@@ -934,7 +935,7 @@ function SeccionAlertaStock() {
   const badgeStock = (m) => (m.stock <= 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700");
 
   const exportarExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(lista.map((m) => ({
+    const ws = XLSX.utils.json_to_sheet(filasExcelSeguras(lista.map((m) => ({
       "Código": m.codigo,
       "Nombre": m.nombre,
       "Centro de costo": m.tipoMaterial,
@@ -942,7 +943,7 @@ function SeccionAlertaStock() {
       "Stock actual": m.stock,
       "Stock mínimo": m.stockMinimo,
       "Unidad": m.unidad,
-    })));
+    }))));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Alerta de stock");
     XLSX.writeFile(wb, "alerta-stock.xlsx");
