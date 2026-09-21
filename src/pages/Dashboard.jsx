@@ -88,7 +88,7 @@ function FilaConversion({ labelOrigen, labelDestino, totalOrigen, enlazados, col
           className={`min-w-0 ${onClickSinVincular ? "cursor-pointer hover:opacity-70 transition" : ""}`}
           onClick={onClickSinVincular}
         >
-          <p className="text-xs text-gray-400 mb-0.5">{labelOrigen} sin {labelDestino.toLowerCase()}</p>
+          <p className="text-xs text-gray-400 mb-0.5">{labelOrigen} - {labelDestino.toLowerCase()}</p>
           <p className="text-2xl sm:text-3xl font-bold text-red-500">{sinVincular}</p>
           {mostrarMonto && (
             <p className="text-[18px] text-red-500 mt-0.5 whitespace-nowrap">
