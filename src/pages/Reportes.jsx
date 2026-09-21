@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
 import { money } from "../components/detalleShared";
 import * as XLSX from "xlsx";
+import { filasExcelSeguras } from "../utils/excelSeguro";
 
 const TH = "px-4 py-3 font-semibold text-gray-500 whitespace-nowrap";
 const VACIO = { valorizado: { total: 0, materiales: [] }, consumo: [], ocSinFactura: [], otSinCotizacion: [], facturasSinPago: [] };
