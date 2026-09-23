@@ -11,7 +11,14 @@ function calcular(sub) {
 }
 
 export default function ModalOrdenCompra({ cotizacion, onClose, onCreada }) {
-  const [monto, setMonto]               = useState(cotizacion.total ?? 0);
+  // `monto` es el SUBTOTAL sin IGV (mismo campo que se manda a calcular()).
+  // Antes el input estaba `disabled` a secas (no se podía crear una OC con
+  // monto distinto al de la cotización) y además mostraba monto/1.18 en vez
+  // del valor real — se habilita y se simplifica para que el estado y el
+  // input manejen el mismo número, sin conversión de por medio.
+  const [monto, setMonto] = useState(() =>
+    cotizacion.subtotal != null ? Number(cotizacion.subtotal) : (Number(cotizacion.total) || 0) / 1.18
+  );
   const [numeroOrden, setNumeroOrden] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError]         = useState("");
@@ -23,7 +30,7 @@ export default function ModalOrdenCompra({ cotizacion, onClose, onCreada }) {
     if (!monto || Number(monto) <= 0) return setError("El monto es obligatorio.");
     setGuardando(true);
     setError("");
-    const calc = calcular(Number(monto) / 1.18); // Guardamos el subtotal sin IGV
+    const calc = calcular(Number(monto)); // `monto` ya es el subtotal sin IGV
     const res = await fetchAuth("/ordenes-compra", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -107,14 +114,15 @@ export default function ModalOrdenCompra({ cotizacion, onClose, onCreada }) {
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 block mb-1">Monto (S/)</label>
+            <label className="text-xs text-gray-500 block mb-1">Monto sin IGV (S/)</label>
             <input
               type="number"
-              value={Number(monto/1.18).toFixed(2)}
-              disabled
-              className={INP_RO}
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+              className={INP}
               min="0"
-              step="0.1"
+              step="0.01"
+              placeholder="0.00"
             />
           </div>
 
