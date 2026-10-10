@@ -599,8 +599,12 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Descuento global (%)</label>
+                {/* Sin flechas y sin cambiar con la rueda del mouse: al hacer scroll
+                    por el formulario con el cursor encima, el valor se movía solo. */}
                 <input type="number" name="descuentoPorcentaje" value={form.descuentoPorcentaje} onChange={handleChange}
-                  step="0.01" min="0" max="100" placeholder="0" className={INP} />
+                  onWheel={(e) => e.target.blur()}
+                  step="0.01" min="0" max="100" placeholder="0"
+                  className={`${INP} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`} />
                 {totalesMostrados.descuento > 0 && (
                   <p className="text-xs text-gray-400 mt-1">
                     −{totalesMostrados.descuento.toFixed(2)} · Subtotal con descuento: {totalesMostrados.subtotalConDescuento.toFixed(2)}

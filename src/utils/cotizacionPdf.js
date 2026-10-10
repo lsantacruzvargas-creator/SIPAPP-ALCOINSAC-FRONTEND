@@ -204,11 +204,12 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     // encabezado y pie (top+bottom+left+right) — solo las FILAS DEL CUERPO
     // pierden las líneas horizontales entre sí (top/bottom en 0, se
     // mantienen las verticales left/right para separar columnas).
-    // cellPadding reducido en vertical (default de autotable ~5) — con las
-    // filas del cuerpo sin borde horizontal propio, ese padding se veía como
-    // un espacio en blanco entre ítems.
-    styles: { fontSize: 9, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: { top: 0, bottom: 0, left: 0.1, right: 0.1 }, fillColor: false, cellPadding: { top: 1.5, right: 2, bottom: 1.5, left: 2 } },
-    headStyles: { fontSize: 8, fontStyle: "bold", textColor: [0, 0, 0], fillColor: false, lineColor: [0, 0, 0], lineWidth: 0.1 },
+    // Sin padding vertical en el cuerpo: las filas no tienen borde horizontal
+    // propio, así que cualquier padding se veía como un espacio en blanco
+    // entre ítem e ítem. Solo la primera y la última fila conservan el aire
+    // contra el encabezado y el marco inferior (ver didParseCell).
+    styles: { fontSize: 9, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: { top: 0, bottom: 0, left: 0.1, right: 0.1 }, fillColor: false, cellPadding: { top: 0, right: 2, bottom: 0, left: 2 } },
+    headStyles: { fontSize: 8, fontStyle: "bold", textColor: [0, 0, 0], fillColor: false, lineColor: [0, 0, 0], lineWidth: 0.1, cellPadding: { top: 1.5, right: 2, bottom: 1.5, left: 2 } },
     footStyles: { halign: "right", fontStyle: "bold", textColor: [0, 0, 0], fillColor: false, lineColor: [0, 0, 0], lineWidth: 0.1 },
     alternateRowStyles: { fillColor: false },
     columnStyles: {
@@ -227,6 +228,14 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     // ancho por carácter, así que solo superponer dejaba un "fantasma" del
     // texto normal más angosto asomando al costado) y se vuelve a dibujar
     // SOLO la línea del grupo padre en negrita, limpia, encima.
+    didParseCell: (data) => {
+      if (data.section !== "body") return;
+      const primera = data.row.index === 0;
+      const ultima = data.row.index === cotizacion.items.length - 1;
+      if (primera || ultima) {
+        data.cell.styles.cellPadding = { top: primera ? 1.5 : 0, right: 2, bottom: ultima ? 1.5 : 0, left: 2 };
+      }
+    },
     didDrawCell: (data) => {
       if (data.section !== "body" || data.column.index !== 1) return;
       const item = cotizacion.items[data.row.index];
@@ -250,7 +259,10 @@ export const exportarCotizacionPdf = async (cotizacion) => {
       const bandHeight = lineasPadre.length * lineHeight;
 
       doc.setFillColor(255, 255, 255);
-      doc.rect(cell.x + 0.3, cell.y + padTop - 0.2, cell.width - 0.6, bandHeight + 0.2, "F");
+      // Sin padding superior la franja no puede subir fuera de la celda: se
+      // comería la última línea del ítem anterior, que ahora queda pegado.
+      const yBanda = cell.y + Math.max(padTop - 0.2, 0);
+      doc.rect(cell.x + 0.3, yBanda, cell.width - 0.6, cell.y + padTop + bandHeight - yBanda, "F");
 
       const x = cell.x + cell.padding("left");
       let ly = cell.y + padTop + lineHeight * 0.75;
@@ -284,10 +296,12 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   });
 
   // ─── Condiciones comerciales ───
-  // Bloque de alto fijo y calculable (mismo contenido siempre) — si no entra
-  // completo antes del pie de logos, se salta de página entero en vez de
-  // partirlo: antes se escribía donde cayera y terminaba encimado con los
-  // logos, que se dibujan en una posición fija de la página "actual".
+  // Dos bloques de alto calculable: las condiciones (título + 4 filas) y el
+  // cierre (párrafo + "Atentamente" + firma). Los logos del pie se dibujan
+  // solo en la ÚLTIMA hoja, así que su franja solo hay que respetarla ahí:
+  // si todo no entra junto sobre los logos, las condiciones aprovechan el
+  // sobrante de la hoja actual (hasta el margen inferior normal) y solo el
+  // cierre pasa a la siguiente, que es la que lleva los logos.
   const condiciones = [
     ["Forma de pago", cotizacion.condicionPago],
     ["Plazo de entrega", cotizacion.plazoEntrega],
@@ -300,17 +314,24 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   // anteriores (5 mm por línea, 10-12 mm entre párrafos) una cotización de 3
   // ítems ya no entraba en una hoja y el bloque saltaba solo a la segunda.
   const LH = 4.5;
-  const altoBloqueCondiciones =
-    5 +                           // "Condiciones comerciales:" + salto
-    condiciones.length * LH +     // filas de condiciones
-    4 +                           // espacio antes del cierre
-    cierreLineas.length * LH + 7 + // párrafo de cierre + espacio
-    10 + LH * 2;                  // "Atentamente," + firma (3 líneas, hasta la última línea base)
+  const altoCondiciones = 5 + condiciones.length * LH; // título + filas
+  // Separaciones entre los bloques. Las compactas solo se usan cuando con las
+  // normales el cierre no entra en la hoja por pocos milímetros: evitan una
+  // segunda hoja con nada más que la despedida y la firma.
+  const NORMAL   = { trasTabla: 7, antesCierre: 4, trasCierre: 7, antesFirma: 10 };
+  const COMPACTO = { trasTabla: 4, antesCierre: 3, trasCierre: 5, antesFirma: 7 };
+  // Párrafo de cierre + "Atentamente," + firma (3 líneas, hasta la última línea base).
+  const altoCierre = (e) => cierreLineas.length * LH + e.trasCierre + e.antesFirma + LH * 2;
   const pageH = doc.internal.pageSize.getHeight();
-  const altoReservadoLogos = 31; // altoLogo(20) + margen inferior(8) + aire
+  const limiteConLogos = pageH - 31; // altoLogo(20) + margen inferior(8) + aire
+  const limiteSinLogos = pageH - 14; // mismo margen inferior que usa la tabla
+  const finTabla = doc.lastAutoTable.finalY;
+  const entraTodoJunto = (e) =>
+    finTabla + e.trasTabla + altoCondiciones + e.antesCierre + altoCierre(e) <= limiteConLogos;
+  const esp = !entraTodoJunto(NORMAL) && entraTodoJunto(COMPACTO) ? COMPACTO : NORMAL;
 
-  let y2 = doc.lastAutoTable.finalY + 7;
-  if (y2 + altoBloqueCondiciones > pageH - altoReservadoLogos) {
+  let y2 = finTabla + esp.trasTabla;
+  if (!entraTodoJunto(esp) && y2 + altoCondiciones > limiteSinLogos) {
     doc.addPage();
     y2 = 20;
   }
@@ -327,13 +348,17 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     doc.text(valor || "-", 54, y2);
     y2 += LH;
   });
-  y2 += 4;
+  y2 += esp.antesCierre;
 
+  if (y2 + altoCierre(esp) > limiteConLogos) {
+    doc.addPage();
+    y2 = 20;
+  }
   doc.text(cierreLineas, 14, y2);
-  y2 += cierreLineas.length * LH + 7;
+  y2 += cierreLineas.length * LH + esp.trasCierre;
 
   doc.text("Atentamente,", 14, y2);
-  y2 += 10;
+  y2 += esp.antesFirma;
   doc.setFont("helvetica", "bold");
   doc.text("JESUS HERRERA", 14, y2);
   y2 += LH;
