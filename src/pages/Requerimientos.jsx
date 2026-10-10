@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import SelectorMateriales from "../components/SelectorMateriales";
+import { formatearFecha } from "../utils/fecha";
 
 const ESTADO_ITEM = {
   pendiente: "bg-blue-100 text-blue-700",
@@ -276,7 +277,7 @@ export default function Requerimientos() {
     return !tieneItemsPendientes(r);
   });
 
-  const fmtFecha = (d) => d ? new Date(d).toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
+  const fmtFecha = (d) => d ? formatearFecha(d, { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">

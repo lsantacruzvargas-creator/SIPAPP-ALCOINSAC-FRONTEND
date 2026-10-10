@@ -4,6 +4,7 @@ import {
   FlujoNegocio, TarjetaRelacion, Chip,
   badgeOT, badgePago, money, BotonAnular, BannerAnulado,
 } from "./detalleShared";
+import { formatearFecha, aInputFecha } from "../utils/fecha";
 
 const INP    = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 w-full transition";
 const INP_RO = "border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 w-full cursor-not-allowed";
@@ -64,7 +65,7 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
   const [form, setForm] = useState({
     numeroFactura:      inicial.numeroFactura      || "",
     fechaCancelacion:   inicial.fechaCancelacion
-      ? new Date(inicial.fechaCancelacion).toISOString().split("T")[0] : "",
+      ? aInputFecha(inicial.fechaCancelacion) : "",
     empresa:            inicial.empresa?._id       || "",
     subtotal:           subtotalInicial != null ? String(subtotalInicial) : "",
     descripcion:        inicial.descripcion        || "",
@@ -74,7 +75,7 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
     codigoSap:          inicial.codigoSap          || "",
     fechaSalida: inicial.fechaSalida
-      ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
+      ? aInputFecha(inicial.fechaSalida) : "",
   });
   const [calc, setCalc]           = useState(calcular(subtotalInicial));
   const [ocVinculada, setOC]      = useState(inicial.ordenCompra || null);
@@ -334,7 +335,7 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Fecha emisión</label>
                 <input value={inicial.fechaEmision
-                  ? new Date(inicial.fechaEmision).toLocaleDateString("es-PE") : "—"}
+                  ? formatearFecha(inicial.fechaEmision) : "—"}
                   disabled className={INP_RO} />
               </div>
               <div>
@@ -451,7 +452,7 @@ export default function DetalleFactura({ factura: inicial, onClose, onGuardada, 
               vacio={informes.length === 0}>
               {ultimo?.fechaHoraGuardado && (
                 <p className="text-xs text-gray-500">
-                  Último: {new Date(ultimo.fechaHoraGuardado).toLocaleDateString("es-PE")}
+                  Último: {formatearFecha(ultimo.fechaHoraGuardado)}
                 </p>
               )}
               {ultimo?.personalEncargado?.nombre && (

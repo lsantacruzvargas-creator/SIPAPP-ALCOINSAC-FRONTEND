@@ -1,5 +1,26 @@
+import { aInputFecha } from "./fecha";
+
 export const calcSubtotal = (item) =>
   parseFloat((item.cantidad * item.precio).toFixed(2));
+
+// El descuento global es sobre la SUMA de subtotales (no por ítem) y se
+// aplica antes del IGV — `subtotal` sigue siendo el bruto para mostrarlo tal
+// cual; `igv` y `total` ya salen sobre la base descontada.
+export const calcularTotales = (sub, descuentoPct = 0) => {
+  const s = Math.round(Number(sub) * 100) / 100 || 0;
+  const pct = Math.min(100, Math.max(0, Number(descuentoPct) || 0));
+  const descuento = Math.round(s * (pct / 100) * 100) / 100;
+  const subtotalConDescuento = Math.round((s - descuento) * 100) / 100;
+  const igv = Math.round(subtotalConDescuento * 0.18 * 100) / 100;
+  return {
+    subtotal: s,
+    descuentoPorcentaje: pct,
+    descuento,
+    subtotalConDescuento,
+    igv,
+    total: Math.round((subtotalConDescuento + igv) * 100) / 100,
+  };
+};
 
 // Opciones sugeridas para "Forma de pago" — combo editable (input + datalist):
 // el usuario puede elegir una de estas o escribir cualquier otro texto libre.
@@ -42,7 +63,7 @@ export const itemDesdeDb = (item) => ({
   })),
   cantidad: item.cantidad,
   fechaEntrega: item.fechaEntrega
-    ? new Date(item.fechaEntrega).toISOString().split("T")[0]
+    ? aInputFecha(item.fechaEntrega)
     : "",
   precio: item.precio,
   moneda: item.moneda || "PEN",

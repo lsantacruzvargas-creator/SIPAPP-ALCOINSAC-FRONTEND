@@ -253,6 +253,20 @@ export default function TablaItemsCotizacion({
                 <td className="px-3 py-2 text-right font-medium tabular-nums">{totalesMostrados.subtotal.toFixed(2)}</td>
                 {puedeEditar && <td />}
               </tr>
+              {totalesMostrados.descuento > 0 && (
+                <>
+                  <tr>
+                    <td colSpan={colsIzquierda} className="px-4 py-2 text-right text-xs text-gray-500">Descuento ({totalesMostrados.descuentoPorcentaje}%)</td>
+                    <td className="px-3 py-2 text-right font-medium tabular-nums">−{totalesMostrados.descuento.toFixed(2)}</td>
+                    {puedeEditar && <td />}
+                  </tr>
+                  <tr>
+                    <td colSpan={colsIzquierda} className="px-4 py-2 text-right text-xs text-gray-500">Subtotal con descuento</td>
+                    <td className="px-3 py-2 text-right font-medium tabular-nums">{totalesMostrados.subtotalConDescuento.toFixed(2)}</td>
+                    {puedeEditar && <td />}
+                  </tr>
+                </>
+              )}
               <tr>
                 <td colSpan={colsIzquierda} className="px-4 py-2 text-right text-xs text-gray-500">IGV 18%</td>
                 <td className="px-3 py-2 text-right font-medium tabular-nums">{totalesMostrados.igv.toFixed(2)}</td>

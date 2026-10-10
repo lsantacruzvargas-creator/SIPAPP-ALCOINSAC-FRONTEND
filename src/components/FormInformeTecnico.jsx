@@ -2,6 +2,7 @@ import { useState } from "react";
 import { fetchAuth, uploadAuth, imgUrl, getUsuario } from "../utils/fetchAuth";
 import { tipoInformePorValor, claveChecklist } from "../utils/informesTecnicos";
 import { valorMayusculas } from "../utils/mayusculas";
+import { fechaHoyLima, aInputFecha } from "../utils/fecha";
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 w-full transition";
 
@@ -314,7 +315,7 @@ export default function FormInformeTecnico({ ordenTrabajo, tipo, informeExistent
   const [hechoPor, setHechoPor] = useState(informeExistente?.hechoPor ?? getUsuario()?.nombre ?? "");
   const [vB, setVB] = useState(informeExistente?.vB ?? "");
   const [fecha, setFecha] = useState(
-    informeExistente?.fecha ? new Date(informeExistente.fecha).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]
+    informeExistente?.fecha ? aInputFecha(informeExistente.fecha) : fechaHoyLima()
   );
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");

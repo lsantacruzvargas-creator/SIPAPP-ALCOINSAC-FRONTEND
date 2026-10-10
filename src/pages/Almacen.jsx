@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
 import * as XLSX from "xlsx";
 import { filasExcelSeguras } from "../utils/excelSeguro";
+import { formatearFecha, fechaHoyLima } from "../utils/fecha";
 
 const INP =
   "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white";
@@ -504,7 +505,7 @@ function ModalIngreso({ materiales, materialInicial, onClose, onGuardado }) {
     ordenCompra: "",
     proveedor: "",
     notas: "",
-    fecha: new Date().toISOString().slice(0, 10),
+    fecha: fechaHoyLima(),
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -644,7 +645,7 @@ function ModalEgreso({ materiales, onClose, onGuardado }) {
     cantidad: "",
     loteOrigen: "",
     notas: "",
-    fecha: new Date().toISOString().slice(0, 10),
+    fecha: fechaHoyLima(),
   });
   const [lotes, setLotes] = useState([]);
   const [precioAuto, setPrecioAuto] = useState(0);
@@ -725,7 +726,7 @@ function ModalEgreso({ materiales, onClose, onGuardado }) {
                       <div className="flex gap-4 mt-1 text-xs text-gray-400">
                         {l.proveedor && <span>{l.proveedor}</span>}
                         <span>Disponible: <strong>{l.cantidadDisponible}</strong></span>
-                        <span>{new Date(l.fecha).toLocaleDateString("es-PE")}</span>
+                        <span>{formatearFecha(l.fecha)}</span>
                       </div>
                     </button>
                   ))}
@@ -804,7 +805,7 @@ function SeccionMovimientos() {
   };
 
   const fmt = (n) => Number(n || 0).toFixed(2);
-  const fmtFecha = (d) => d ? new Date(d).toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
+  const fmtFecha = (d) => d ? formatearFecha(d, { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
 
   return (
     <div className="space-y-5">
@@ -1041,7 +1042,7 @@ function SeccionRotacion() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  const fmtFecha = (d) => d ? new Date(d).toLocaleDateString("es-PE") : "—";
+  const fmtFecha = (d) => d ? formatearFecha(d) : "—";
 
   return (
     <div className="space-y-5">

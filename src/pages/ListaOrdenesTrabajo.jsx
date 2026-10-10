@@ -5,6 +5,7 @@ import ModalNuevaOT from "../components/ModalNuevaOT";
 import { DotChip, badgeOT, dotOT } from "../components/detalleShared";
 import * as XLSX from "xlsx";
 import { filasExcelSeguras } from "../utils/excelSeguro";
+import { formatearFecha, anioLima, mesLima } from "../utils/fecha";
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -91,7 +92,7 @@ function TablaOTs({ titulo, acento, ordenes, onSelect, vacioMsg }) {
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-center text-gray-500 whitespace-nowrap">
-                      {o.fechaRecibida ? new Date(o.fechaRecibida).toLocaleDateString("es-PE") : <span className="text-gray-300">—</span>}
+                      {o.fechaRecibida ? formatearFecha(o.fechaRecibida) : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-3.5 text-gray-700">
                       {o.empresa?.razonSocial || <span className="text-gray-300">—</span>}
@@ -146,7 +147,7 @@ export default function ListaOrdenesTrabajo() {
 
   useEffect(() => { cargar(); }, []);
 
-  const anos = [...new Set(ordenes.map((o) => new Date(o.createdAt).getFullYear()))].sort(
+  const anos = [...new Set(ordenes.map((o) => anioLima(o.createdAt)))].sort(
     (a, b) => b - a
   );
 
@@ -173,8 +174,8 @@ export default function ListaOrdenesTrabajo() {
     const fecha = new Date(o.createdAt);
     const q = filtros.busqueda.toLowerCase();
     return (
-      (!filtros.ano || fecha.getFullYear() === parseInt(filtros.ano)) &&
-      (!filtros.mes || fecha.getMonth() + 1 === parseInt(filtros.mes)) &&
+      (!filtros.ano || anioLima(fecha) === parseInt(filtros.ano)) &&
+      (!filtros.mes || mesLima(fecha) === parseInt(filtros.mes)) &&
       (!filtros.estado || o.estado === filtros.estado) &&
       (!filtros.empresa || o.empresa?._id === filtros.empresa) &&
       (!filtros.planta || o.planta === filtros.planta) &&
@@ -207,7 +208,7 @@ export default function ListaOrdenesTrabajo() {
   const filaOT = (o) => ({
     "N° OT":          o.numeroOT || "—",
     "N° Cotización":  o.cotizacion?.numeroCotizacion || "—",
-    "Fecha recibida": o.fechaRecibida ? new Date(o.fechaRecibida).toLocaleDateString("es-PE") : "—",
+    "Fecha recibida": o.fechaRecibida ? formatearFecha(o.fechaRecibida) : "—",
     "Empresa":        o.empresa?.razonSocial || "—",
     "Planta":         o.planta || "—",
     "Encargado":      o.encargado || "—",

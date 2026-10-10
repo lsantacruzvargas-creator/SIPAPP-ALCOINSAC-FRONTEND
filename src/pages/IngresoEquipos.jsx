@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
 import ModalOTEquipo from "../components/ModalOTEquipo";
+import { formatearFecha, fechaHoyLima, anioLima, mesLima } from "../utils/fecha";
 
 const ESTADOS = ["recibido", "en diagnóstico", "en reparación", "listo", "entregado"];
 const ESTADOS_OT = ["pendiente", "en progreso", "completado", "entregado"];
@@ -14,7 +15,7 @@ const badgeOT = (e) => {
   return "bg-gray-100 text-gray-400";
 };
 
-const hoyISO = () => new Date().toISOString().split("T")[0];
+const hoyISO = () => fechaHoyLima();
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 w-full";
 const INP_RO = "border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 w-full cursor-not-allowed";
@@ -127,7 +128,7 @@ export default function IngresoEquipos() {
     setGuardando(false);
   };
 
-  const aniosLista = [...new Set(ingresos.map((i) => new Date(i.fechaIngreso).getFullYear()))].sort((a, b) => b - a);
+  const aniosLista = [...new Set(ingresos.map((i) => anioLima(i.fechaIngreso)))].sort((a, b) => b - a);
 
   const empresasLista = [
     ...new Map(
@@ -151,8 +152,8 @@ export default function IngresoEquipos() {
       || ot?.codigo?.toLowerCase().includes(txt)
       || i.numeroGuiaEmision?.toLowerCase().includes(txt);
     const matchEstado  = !estadoFiltro  || ot?.estado === estadoFiltro;
-    const matchAnio    = !anioFiltro    || fecha.getFullYear() === parseInt(anioFiltro);
-    const matchMes     = !mesFiltro     || fecha.getMonth() + 1 === parseInt(mesFiltro);
+    const matchAnio    = !anioFiltro    || anioLima(fecha) === parseInt(anioFiltro);
+    const matchMes     = !mesFiltro     || mesLima(fecha) === parseInt(mesFiltro);
     const matchEmpresa = !empresaFiltro || i.empresa?._id === empresaFiltro;
     const matchPlanta  = !plantaFiltro  || i.planta === plantaFiltro;
     return matchBusq && matchEstado && matchAnio && matchMes && matchEmpresa && matchPlanta;
@@ -302,7 +303,7 @@ export default function IngresoEquipos() {
                     {[i.marca, i.modelo].filter(Boolean).join(" / ") || <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3 text-center text-gray-500">
-                    {new Date(i.fechaIngreso).toLocaleDateString("es-PE")}
+                    {formatearFecha(i.fechaIngreso)}
                   </td>
                   <td className="px-4 py-3 text-center font-mono text-xs text-emerald-600">
                     {ot ? ot.codigo : <span className="text-gray-300">—</span>}

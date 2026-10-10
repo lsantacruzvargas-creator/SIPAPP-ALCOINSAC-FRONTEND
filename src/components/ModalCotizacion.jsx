@@ -8,6 +8,7 @@ import {
   itemDesdeDb, itemVacioVenta, itemVacioServicio,
 } from "../utils/cotizacionItems";
 import CeldasNumericas from "./CeldasNumericas";
+import { formatearFecha, aInputFecha } from "../utils/fecha";
 
 // Módulo-nivel: evita desmontaje/remontaje en cada render (previene pérdida de foco)
 function FilaDescripcionEditable({ item, tipo, onUpdate, onAddSub, onUpdateSub, onDeleteSub }) {
@@ -80,7 +81,7 @@ function PanelIngresoEquipo({ ie }) {
         {ie.fechaIngreso && (
           <div>
             <label className="text-xs text-gray-400 block mb-1">Fecha de ingreso</label>
-            <input value={new Date(ie.fechaIngreso).toLocaleDateString("es-PE")} disabled className={`w-full ${INP_RO}`} />
+            <input value={formatearFecha(ie.fechaIngreso)} disabled className={`w-full ${INP_RO}`} />
           </div>
         )}
         {ie.caracteristicasElectricas && (
@@ -141,11 +142,11 @@ function VistaDetalle({ cot, ie, ocVinculada, onVincularOC, vinculandoOC }) {
         </div>
         <div>
           <p className="text-xs text-gray-400 mb-0.5">Fecha</p>
-          <p className="text-sm">{new Date(cot.fecha).toLocaleDateString("es-PE")}</p>
+          <p className="text-sm">{formatearFecha(cot.fecha)}</p>
         </div>
         <div>
           <p className="text-xs text-gray-400 mb-0.5">Fecha recibida</p>
-          <p className="text-sm">{cot.fechaRecibida ? new Date(cot.fechaRecibida).toLocaleDateString("es-PE") : "—"}</p>
+          <p className="text-sm">{cot.fechaRecibida ? formatearFecha(cot.fechaRecibida) : "—"}</p>
         </div>
         <div>
           <p className="text-xs text-gray-400 mb-0.5">Título</p>
@@ -195,7 +196,7 @@ function VistaDetalle({ cot, ie, ocVinculada, onVincularOC, vinculandoOC }) {
                 <td className="px-3 py-2 text-center">{item.cantidad}</td>
                 <td className="px-3 py-2 text-center text-gray-500">
                   {item.fechaEntrega
-                    ? new Date(item.fechaEntrega).toLocaleDateString("es-PE")
+                    ? formatearFecha(item.fechaEntrega)
                     : "—"}
                 </td>
                 <td className="px-3 py-2 text-right">{Number(item.precio).toFixed(2)}</td>
@@ -340,8 +341,8 @@ export default function ModalCotizacion({ cotizacion: inicial, onClose, onSaved 
       tipo: cot.tipo,
       empresa: cot.empresa?._id || "",
       condicionPago: cot.condicionPago,
-      fecha: cot.fecha ? new Date(cot.fecha).toISOString().split("T")[0] : "",
-      fechaRecibida: cot.fechaRecibida ? new Date(cot.fechaRecibida).toISOString().split("T")[0] : "",
+      fecha: cot.fecha ? aInputFecha(cot.fecha) : "",
+      fechaRecibida: cot.fechaRecibida ? aInputFecha(cot.fechaRecibida) : "",
       titulo: cot.titulo,
       numeroCotizacion: cot.numeroCotizacion || "",
       numeroGuiaEmision: cot.numeroGuiaEmision || "",

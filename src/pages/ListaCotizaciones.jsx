@@ -7,6 +7,8 @@ import ModalNuevaOT from "../components/ModalNuevaOT";
 import ModalNuevaCotizacion from "../components/ModalNuevaCotizacion";
 import * as XLSX from "xlsx";
 import { filasExcelSeguras } from "../utils/excelSeguro";
+import { calcularTotales } from "../utils/cotizacionItems";
+import { formatearFecha, anioLima, mesLima } from "../utils/fecha";
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -51,6 +53,13 @@ const numerosOT = (ots) =>
 // entre ítems, así que la moneda del primer ítem representa a toda la fila.
 // Sin ítems (p.ej. pseudo-fila de OT sin cotización) se asume PEN.
 const monedaCot = (c) => (c.items?.[0]?.moneda === "USD" ? "USD" : "PEN");
+
+// `c.subtotal` es el bruto de los ítems — el "Total sin IGV" real lleva el
+// descuento global aplicado.
+const totalSinIgv = (c) =>
+  c.subtotal
+    ? calcularTotales(c.subtotal, c.descuentoPorcentaje).subtotalConDescuento
+    : Number(c.total) / 1.18;
 
 function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, facturaPorNumDoc, onSelect, vacioMsg }) {
   return (
@@ -109,7 +118,7 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, facturaPor
                     </div>
                   </td>
                   <td className="px-4 py-3.5 text-center text-gray-500 whitespace-nowrap">
-                    {c.fechaRecibida ? new Date(c.fechaRecibida).toLocaleDateString("es-PE") : <span className="text-gray-300">—</span>}
+                    {c.fechaRecibida ? formatearFecha(c.fechaRecibida) : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3.5 text-gray-700">
                     {c.empresa?.razonSocial || <span className="text-gray-300">—</span>}
@@ -119,12 +128,12 @@ function TablaCotizaciones({ titulo, acento, cotizaciones, otsPorCot, facturaPor
                   <td className="px-4 py-3.5 text-gray-700">{c.titulo}</td>
                   <td className="px-4 py-3.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
                     {monedaCot(c) === "PEN"
-                      ? Number(c.subtotal || Number(c.total) / 1.18).toLocaleString("es-PE", { minimumFractionDigits: 2 })
+                      ? totalSinIgv(c).toLocaleString("es-PE", { minimumFractionDigits: 2 })
                       : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
                     {monedaCot(c) === "USD"
-                      ? Number(c.subtotal || Number(c.total) / 1.18).toLocaleString("es-PE", { minimumFractionDigits: 2 })
+                      ? totalSinIgv(c).toLocaleString("es-PE", { minimumFractionDigits: 2 })
                       : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3.5 text-center">
@@ -244,7 +253,7 @@ export default function ListaCotizaciones() {
 
   const filas = [...cotizaciones, ...otsSinCotizacion.map(pseudoDeOT)];
 
-  const anos = [...new Set(filas.map((c) => new Date(c.fecha).getFullYear()))].sort(
+  const anos = [...new Set(filas.map((c) => anioLima(c.fecha)))].sort(
     (a, b) => b - a
   );
 
@@ -275,8 +284,8 @@ export default function ListaCotizaciones() {
     return (
       (!filtros.empresa || c.empresa?._id === filtros.empresa) &&
       (!filtros.planta || c.planta === filtros.planta) &&
-      (!filtros.ano || fecha.getFullYear() === parseInt(filtros.ano)) &&
-      (!filtros.mes || fecha.getMonth() + 1 === parseInt(filtros.mes)) &&
+      (!filtros.ano || anioLima(fecha) === parseInt(filtros.ano)) &&
+      (!filtros.mes || mesLima(fecha) === parseInt(filtros.mes)) &&
       (!filtros.oc  || (filtros.oc === "con" ? tieneOC(c) : !tieneOC(c))) &&
       (!q ||
         c.titulo?.toLowerCase().includes(q) ||
@@ -321,13 +330,13 @@ export default function ListaCotizaciones() {
   const filaCotizacion = (c) => ({
     "N° OT":           numerosOT(otsPorCot.get(c._id)) || "—",
     "N° Cotización":   c._esOT ? "Sin cotización" : (c.numeroCotizacion || "—"),
-    "Fecha recibida":  c.fechaRecibida ? new Date(c.fechaRecibida).toLocaleDateString("es-PE") : "—",
+    "Fecha recibida":  c.fechaRecibida ? formatearFecha(c.fechaRecibida) : "—",
     "Empresa":         c.empresa?.razonSocial || "—",
     "Planta":          c.planta || "—",
     "Encargado":       c.encargado || "—",
     "Descripción":     c.titulo,
-    "Total sin IGV (S/)": monedaCot(c) === "PEN" ? Number(c.subtotal || Number(c.total) / 1.18).toFixed(2) : "—",
-    "Total sin IGV ($)":  monedaCot(c) === "USD" ? Number(c.subtotal || Number(c.total) / 1.18).toFixed(2) : "—",
+    "Total sin IGV (S/)": monedaCot(c) === "PEN" ? totalSinIgv(c).toFixed(2) : "—",
+    "Total sin IGV ($)":  monedaCot(c) === "USD" ? totalSinIgv(c).toFixed(2) : "—",
     "Pagada":           estaPagada(c) ? "Pagada" : "—",
   });
 

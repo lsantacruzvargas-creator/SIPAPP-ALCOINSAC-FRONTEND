@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import { tipoInformePorValor, claveChecklist } from "./informesTecnicos";
 import { imgUrl } from "./fetchAuth";
+import { formatearFecha } from "./fecha";
 
 // exceljs solo puede incrustar estos 3 formatos — si la foto subida es de
 // otro tipo (ej. webp/heic) se omite del Excel (sigue disponible en la app).
@@ -700,7 +701,7 @@ export async function exportarInformeTecnicoExcel(informe, ot) {
     }
   }
 
-  const fechaFormateada = informe.fecha ? new Date(informe.fecha).toLocaleDateString("es-PE") : "";
+  const fechaFormateada = informe.fecha ? formatearFecha(informe.fecha) : "";
   escribir(mapa.footer?.hechoPor, informe.hechoPor);
   escribir(mapa.footer?.vB, informe.vB);
   escribir(mapa.footer?.fecha, fechaFormateada);

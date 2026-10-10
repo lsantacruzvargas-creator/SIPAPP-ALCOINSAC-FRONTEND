@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import * as XLSX from "xlsx";
+import { formatearFecha } from "../utils/fecha";
 
 /* Config por tipo: columnas del Excel (orden = plantilla) */
 export const COLS_FACTURAS = [
@@ -76,17 +77,29 @@ const LABELS_DETALLE = {
   facturas:     "facturas",
 };
 
+// Devuelve el día calendario como "YYYY-MM-DD" (sin hora): así el backend lo
+// guarda a medianoche Lima sin importar el huso del navegador que importa.
+const ymd = (y, m, d) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
 function parseFecha(v) {
   if (!v) return null;
-  if (v instanceof Date) return isNaN(v) ? null : v.toISOString();
+  if (v instanceof Date) {
+    if (isNaN(v)) return null;
+    // SheetJS arma la celda de fecha en hora local del navegador y puede
+    // quedar unos minutos antes de la medianoche (desfase histórico del huso)
+    // — sumar 12 h antes de leer el día evita caer en el día anterior.
+    const dt = new Date(v.getTime() + 12 * 3600 * 1000);
+    return ymd(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
+  }
   const s = String(v).trim();
   const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
   if (m) {
     let [, d, mo, y] = m;
     if (y.length === 2) y = "20" + y;
     const dt = new Date(Number(y), Number(mo) - 1, Number(d));
-    return isNaN(dt) ? null : dt.toISOString();
+    return isNaN(dt) ? null : ymd(y, mo, d);
   }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   const dt = new Date(s);
   return isNaN(dt) ? null : dt.toISOString();
 }
@@ -296,7 +309,7 @@ export default function ModalImportarExcel({ tipo, columnas, endpoint, color = "
                           {columnas.map(col => (
                             <td key={col.key} className="px-2 py-2 whitespace-nowrap text-gray-600">
                               {col.tipo === "fecha" && f.datos[col.key]
-                                ? new Date(f.datos[col.key]).toLocaleDateString("es-PE")
+                                ? formatearFecha(f.datos[col.key])
                                 : (f.datos[col.key] === "" || f.datos[col.key] == null
                                     ? <span className="text-gray-300">—</span>
                                     : String(f.datos[col.key]))}

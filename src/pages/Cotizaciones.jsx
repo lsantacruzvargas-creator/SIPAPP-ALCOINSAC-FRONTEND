@@ -10,8 +10,9 @@ import {
   OPCIONES_FORMA_PAGO,
 } from "../utils/cotizacionItems";
 import CeldasNumericas from "../components/CeldasNumericas";
+import { formatearFecha, fechaHoyLima } from "../utils/fecha";
 
-const hoy = () => new Date().toISOString().split("T")[0];
+const hoy = () => fechaHoyLima();
 
 export default function Cotizaciones() {
   const [empresas, setEmpresas] = useState([]);
@@ -278,7 +279,7 @@ export default function Cotizaciones() {
                             {ie.fechaIngreso && (
                               <div>
                                 <label className="text-xs text-gray-400 block mb-1">Fecha de ingreso</label>
-                                <input value={new Date(ie.fechaIngreso).toLocaleDateString("es-PE")} disabled className={`w-full ${INP_RO}`} />
+                                <input value={formatearFecha(ie.fechaIngreso)} disabled className={`w-full ${INP_RO}`} />
                               </div>
                             )}
                             {ie.caracteristicasElectricas && (

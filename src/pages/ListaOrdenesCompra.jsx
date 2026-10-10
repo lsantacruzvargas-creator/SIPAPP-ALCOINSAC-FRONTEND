@@ -6,6 +6,7 @@ import ModalImportarExcel, { COLS_OC, COLS_CADENA } from "../components/ModalImp
 import { DotChip, badgeOT, badgePago, dotOT, dotPago } from "../components/detalleShared";
 import * as XLSX from "xlsx";
 import { filasExcelSeguras } from "../utils/excelSeguro";
+import { formatearFecha, anioLima, mesLima } from "../utils/fecha";
 
 const ESTADOS_OT = ["", "pendiente", "en progreso", "completado"];
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -108,7 +109,7 @@ function TablaOC({ titulo, acento, ordenes, otMap, factMap, factByOCMap, otNumer
                     {monedaOC(o) === "USD" ? Number(o.monto).toLocaleString("es-PE", { minimumFractionDigits: 2 }) : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3.5 text-center text-gray-500 whitespace-nowrap">
-                    {new Date(o.fecha).toLocaleDateString("es-PE")}
+                    {formatearFecha(o.fecha)}
                   </td>
                   <td className="px-4 py-3.5 text-center">
                     {estadoActual ? (
@@ -178,8 +179,8 @@ export default function ListaOrdenesCompra() {
   const [estadoOT, setEstadoOT] = useState("");
   const [empresa, setEmpresa]   = useState("");
   const [planta, setPlanta]     = useState("");
-  const [anio, setAnio]         = useState(hoy.getFullYear());
-  const [mes, setMes]           = useState(hoy.getMonth() + 1);
+  const [anio, setAnio]         = useState(anioLima(hoy));
+  const [mes, setMes]           = useState(mesLima(hoy));
   // "Todas las órdenes de compra" (tabla única, sin categorizar) es la vista
   // por defecto al abrir la página.
   const [vista, setVista]       = useState("todasLasOC");
@@ -222,7 +223,7 @@ export default function ListaOrdenesCompra() {
 
   useEffect(() => { cargar(); }, []);
 
-  const anios = [...new Set(ordenes.map((o) => new Date(o.fecha).getFullYear()))].sort((a, b) => b - a);
+  const anios = [...new Set(ordenes.map((o) => anioLima(o.fecha)))].sort((a, b) => b - a);
 
   const empresasLista = [
     ...new Map(
@@ -240,8 +241,8 @@ export default function ListaOrdenesCompra() {
 
   const filtradas = ordenes.filter((o) => {
     const fecha = new Date(o.fecha);
-    const matchAnio  = fecha.getFullYear() === anio;
-    const matchMes   = fecha.getMonth() + 1 === mes;
+    const matchAnio  = anioLima(fecha) === anio;
+    const matchMes   = mesLima(fecha) === mes;
     const txt = busqueda.toLowerCase();
     const factura = factByOCMap[o._id] || factMap[o.cotizacion?._id || o.cotizacion];
     const matchBusq  = !txt
@@ -267,7 +268,7 @@ export default function ListaOrdenesCompra() {
     return new Date(b.fecha) - new Date(a.fecha);
   });
 
-  const hayFiltro = busqueda || estadoOT || empresa || planta || anio !== hoy.getFullYear() || mes !== hoy.getMonth() + 1;
+  const hayFiltro = busqueda || estadoOT || empresa || planta || anio !== anioLima(hoy) || mes !== mesLima(hoy);
   // Si hay una búsqueda de texto activa, no dejar que el selector de "vista"
   // esconda una tabla donde SÍ cae el resultado.
   const vistaEfectiva = busqueda ? "todas" : vista;
@@ -294,7 +295,7 @@ export default function ListaOrdenesCompra() {
       "Título":           o.titulo || "—",
       "Total sin IGV (S/)": monedaOC(o) === "PEN" ? Number(o.monto).toFixed(2) : "—",
       "Total sin IGV ($)":  monedaOC(o) === "USD" ? Number(o.monto).toFixed(2) : "—",
-      "Fecha":            new Date(o.fecha).toLocaleDateString("es-PE"),
+      "Fecha":            formatearFecha(o.fecha),
       "Estado OT":        estadoActual || "Sin OT",
       "Estado Pago":      factura?.estadoPago || "—",
     };
@@ -426,7 +427,7 @@ export default function ListaOrdenesCompra() {
         </select>
         {hayFiltro && (
           <button
-            onClick={() => { setBusqueda(""); setEstadoOT(""); setEmpresa(""); setPlanta(""); setAnio(hoy.getFullYear()); setMes(hoy.getMonth() + 1); setVista("todasLasOC"); }}
+            onClick={() => { setBusqueda(""); setEstadoOT(""); setEmpresa(""); setPlanta(""); setAnio(anioLima(hoy)); setMes(mesLima(hoy)); setVista("todasLasOC"); }}
             className="text-sm text-gray-400 hover:text-gray-700 transition"
           >
             Limpiar

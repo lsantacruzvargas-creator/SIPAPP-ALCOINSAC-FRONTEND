@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchAuth, getUsuario } from "../utils/fetchAuth";
 import { exportarCotizacionPdf } from "../utils/cotizacionPdf";
-import { calcSubtotal, itemDesdeDb, itemInvalido, OPCIONES_FORMA_PAGO } from "../utils/cotizacionItems";
+import { calcSubtotal, calcularTotales, itemDesdeDb, itemInvalido, OPCIONES_FORMA_PAGO } from "../utils/cotizacionItems";
 import ModalCrearOT from "./ModalCrearOT";
 import ModalOrdenCompra from "./ModalOrdenCompra";
 import BuscadorOrdenTrabajo from "./BuscadorOrdenTrabajo";
@@ -11,20 +11,16 @@ import {
   badgePago, badgeOT, money, BotonAnular, BannerAnulado,
   BotonCerrarCadena, bloqueadoPorCadenaCerrada,
 } from "./detalleShared";
+import { formatearFecha, fechaHoyLima, aInputFecha } from "../utils/fecha";
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-full transition";
-
-function calcular(sub) {
-  const s = Math.round(Number(sub) * 100) / 100 || 0;
-  const igv = Math.round(s * 0.18 * 100) / 100;
-  return { subtotal: s, igv, total: Math.round((s + igv) * 100) / 100 };
-}
 
 export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuardada, onNavegar }) {
   const [cot, setCot] = useState(inicial);
   const subtotalInicial = inicial.subtotal ?? 0;
   const [form, setForm] = useState({
     subtotal: subtotalInicial > 0 ? String(subtotalInicial) : "",
+    descuentoPorcentaje: inicial.descuentoPorcentaje ? String(inicial.descuentoPorcentaje) : "",
     empresa: inicial.empresa?._id || "",
     tipo: inicial.tipo || "venta",
     condicionPago: inicial.condicionPago || "",
@@ -35,8 +31,8 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     plazoEntrega: inicial.plazoEntrega || "2 días recibida la OC",
     lugarEntrega: inicial.lugarEntrega || "",
     validezOferta: inicial.validezOferta || "15 días",
-    fecha: inicial.fecha ? new Date(inicial.fecha).toISOString().split("T")[0] : "",
-    fechaRecibida: inicial.fechaRecibida ? new Date(inicial.fechaRecibida).toISOString().split("T")[0] : "",
+    fecha: inicial.fecha ? aInputFecha(inicial.fecha) : "",
+    fechaRecibida: inicial.fechaRecibida ? aInputFecha(inicial.fechaRecibida) : "",
     titulo: inicial.titulo || "",
     numeroCotizacion: inicial.numeroCotizacion || "",
     atencion: inicial.atencion || "Area de compras",
@@ -46,12 +42,11 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     numeroGuiaEmision: inicial.numeroGuiaEmision || "",
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
     codigoSap: inicial.codigoSap || "",
-    fechaSalida: inicial.fechaSalida ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
+    fechaSalida: inicial.fechaSalida ? aInputFecha(inicial.fechaSalida) : "",
     // Una cotización no mezcla monedas entre ítems — el primer ítem representa
     // a toda la cotización (mismo criterio que cotizacionPdf.js).
     moneda: inicial.items?.[0]?.moneda === "USD" ? "USD" : "PEN",
   });
-  const [calc, setCalc] = useState(() => calcular(subtotalInicial));
   const [items, setItems] = useState(() => (inicial.items || []).map(itemDesdeDb));
   const [intentoGuardar, setIntentoGuardar] = useState(false);
   const [empresas, setEmpresas] = useState([]);
@@ -67,7 +62,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
   const [seleccionados, setSeleccionados] = useState(() => new Set());
   const [generandoOT, setGenerandoOT] = useState(false);
   const [modalCerrarCadenaOpen, setModalCerrarCadenaOpen] = useState(false);
-  const [fechaPagoCierre, setFechaPagoCierre] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fechaPagoCierre, setFechaPagoCierre] = useState(() => fechaHoyLima());
   const [numeroFacturaCierre, setNumeroFacturaCierre] = useState("");
   const [cerrandoCadena, setCerrandoCadena] = useState(false);
   const [duplicando, setDuplicando] = useState(false);
@@ -118,7 +113,6 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === "subtotal") setCalc(calcular(value));
     setForm(prev => ({
       ...prev,
       [name]: value,
@@ -162,7 +156,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
 
   const subtotalItems = parseFloat(items.reduce((acc, i) => acc + calcSubtotal(i), 0).toFixed(2));
   const usarTotalesDeItems = items.length > 0;
-  const totalesMostrados = usarTotalesDeItems ? calcular(subtotalItems) : calc;
+  const totalesMostrados = calcularTotales(usarTotalesDeItems ? subtotalItems : form.subtotal, form.descuentoPorcentaje);
 
   // Arma el objeto para el PDF con lo que hay en pantalla ahora mismo, sin
   // depender de que se haya guardado antes (Guardar cambios cierra el modal).
@@ -179,6 +173,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
     lugarEntrega: form.lugarEntrega,
     validezOferta: form.validezOferta,
     subtotal: totalesMostrados.subtotal,
+    descuentoPorcentaje: totalesMostrados.descuentoPorcentaje,
     igv: totalesMostrados.igv,
     total: totalesMostrados.total,
     items: items.map(i => ({
@@ -218,6 +213,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
       lugarEntrega: form.lugarEntrega,
       validezOferta: form.validezOferta,
       subtotal: totalesMostrados.subtotal,
+      descuentoPorcentaje: totalesMostrados.descuentoPorcentaje,
       igv: totalesMostrados.igv,
       total: totalesMostrados.total,
       numeroGuiaEmision: form.numeroGuiaEmision,
@@ -601,6 +597,16 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
                     step="0.01" min="0" placeholder="0.00" className={`${INP} text-lg font-semibold`} />
                 )}
               </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Descuento global (%)</label>
+                <input type="number" name="descuentoPorcentaje" value={form.descuentoPorcentaje} onChange={handleChange}
+                  step="0.01" min="0" max="100" placeholder="0" className={INP} />
+                {totalesMostrados.descuento > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    −{totalesMostrados.descuento.toFixed(2)} · Subtotal con descuento: {totalesMostrados.subtotalConDescuento.toFixed(2)}
+                  </p>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="text-center">
                   <p className="text-xs text-gray-400">IGV 18%</p>
@@ -655,7 +661,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               vacio={informes.length === 0}>
               {ultimo?.fechaHoraGuardado && (
                 <p className="text-xs text-gray-500">
-                  Último: {new Date(ultimo.fechaHoraGuardado).toLocaleDateString("es-PE")}
+                  Último: {formatearFecha(ultimo.fechaHoraGuardado)}
                 </p>
               )}
             </TarjetaRelacion>
@@ -754,7 +760,7 @@ export default function DetalleCotizacion({ cotizacion: inicial, onClose, onGuar
               <div className="bg-gray-50 rounded-xl border border-gray-100 p-4 text-sm space-y-1.5">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Subtotal</span>
-                  <span className="font-medium text-gray-800">{money(cot.subtotal)}</span>
+                  <span className="font-medium text-gray-800">{money(calcularTotales(cot.subtotal, cot.descuentoPorcentaje).subtotalConDescuento)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">I.G.V.</span>

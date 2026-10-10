@@ -1,5 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { calcularTotales } from "./cotizacionItems";
+import { formatearFecha } from "./fecha";
 
 // Se cargan desde /public (no un import de módulo) para que, si el archivo
 // todavía no fue subido, solo falle la carga de esa imagen puntual en vez
@@ -67,10 +69,10 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   let y = 32;
   doc.setDrawColor(200);
   doc.line(14, y, PAGE_R, y);
-  y += 7;
+  y += 6;
 
   // ─── Señores/Atención (izquierda) + Cotización/Fecha (derecha) ───
-  const fechaStr = cotizacion.fecha ? new Date(cotizacion.fecha).toLocaleDateString("es-PE") : "-";
+  const fechaStr = cotizacion.fecha ? formatearFecha(cotizacion.fecha) : "-";
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
@@ -79,7 +81,7 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   doc.text(empresa?.razonSocial || "-", 32, y);
   doc.setFont("helvetica", "bold");
   doc.text(`COTIZACION: ${cotizacion.numeroCotizacion || "-"}`, 150, y, { align: "right" });
-  y += 6;
+  y += 5;
 
   doc.setFont("helvetica", "bold");
   doc.text("Atención:", 14, y);
@@ -89,18 +91,18 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   doc.text("Fecha:", 113, y);
   doc.setFont("helvetica", "normal");
   doc.text(fechaStr, 150, y, { align: "right" });
-  y += 10;
+  y += 8;
 
   // ─── Párrafo de presentación (fijo) ───
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text("De nuestra mayor consideración:", 14, y);
-  y += 6;
+  y += 5;
   const parrafo =
     "Nos es grato presentarnos ante ud. Para saludarlo cordialmente y a su vez presentarle nuestra PROPUESTA COMERCIAL.";
   const lineas = doc.splitTextToSize(parrafo, PAGE_R - 14);
   doc.text(lineas, 14, y);
-  y += lineas.length * 5 + 4;
+  y += lineas.length * 4.5 + 3;
 
   // ─── Título + condición de pago ───
   // doc.setFontSize(10);
@@ -116,31 +118,49 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   // se toma la del primer ítem, mismo criterio que ya usa cada fila del
   // cuerpo (una cotización real no mezcla monedas entre ítems).
   const monedaFooter = cotizacion.items?.[0]?.moneda === "USD" ? "$" : "S/";
-  // Celda en blanco (cols 0-2), a la izquierda de la etiqueta. El borde
-  // izquierdo real de esas filas es el marco exterior de la tabla principal
-  // (tableLineWidth, líneas ~187) — ese rectángulo se repinta siempre encima
-  // de cualquier lineWidth de celda, así que no hay forma de quitarlo ahí.
+  // El descuento global (sobre la suma de subtotales, antes del IGV) solo se
+  // muestra si se aplicó. Se deriva de subtotal + porcentaje en vez de
+  // depender de montos guardados: la cotización solo persiste
+  // `descuentoPorcentaje` (`subtotal` es el bruto; igv/total ya vienen sobre
+  // la base descontada).
+  const totales = calcularTotales(cotizacion.subtotal, cotizacion.descuentoPorcentaje);
+  // "Descuento 12.5%:" no entra en una línea en el ancho de la columna
+  // "Precio" — con descuento la etiqueta ocupa también la columna "Cant.".
+  const colsEtiqueta = totales.descuento > 0 ? 2 : 1;
+  // Celda en blanco (cols 0-2, o 0-1 con descuento), a la izquierda de la
+  // etiqueta. El borde izquierdo real de esas filas es el marco exterior de
+  // la tabla principal (tableLineWidth) — ese rectángulo se repinta siempre
+  // encima de cualquier lineWidth de celda, así que no hay forma de quitarlo ahí.
   // Por eso el pie (Subtotal/IGV/Total) se dibuja como una SEGUNDA tabla,
   // pegada justo debajo, sin tableLineWidth propio: así cada celda controla
   // sus 4 bordes de verdad y sí se puede apagar el izquierdo/inferior.
   const filaFooterServicio = (etiqueta, valor, lwBlanco) => [
-    { content: "", colSpan: 3, styles: { lineWidth: lwBlanco } },
-    { content: etiqueta, styles: { halign: "right", fontStyle: "bold" } },
+    { content: "", colSpan: 4 - colsEtiqueta, styles: { lineWidth: lwBlanco } },
+    { content: etiqueta, colSpan: colsEtiqueta, styles: { halign: "right", fontStyle: "bold" } },
     { content: monedaFooter, styles: { halign: "center", fontStyle: "bold", lineWidth: { top: 0.1, bottom: 0.1, left: 0.1, right: 0 } } },
     { content: Number(valor).toFixed(2), styles: { halign: "right", fontStyle: "bold", lineWidth: { top: 0.1, bottom: 0.1, left: 0, right: 0.1 } } },
   ];
-  // Fila 1: top normal (linda con el borde inferior del cuerpo). Las 3 filas
-  // van sin izquierdo/inferior; filas 2-3 también sin top (si no, el top de
-  // una repinta la línea que la anterior apagó con su bottom) — la celda en
-  // blanco queda así totalmente abierta por abajo e izquierda en las 3.
+  // Fila 1: top normal (linda con el borde inferior del cuerpo). Todas las
+  // filas van sin izquierdo/inferior; de la 2 en adelante también sin top (si
+  // no, el top de una repinta la línea que la anterior apagó con su bottom) —
+  // la celda en blanco queda así totalmente abierta por abajo e izquierda.
   const filasFooterServicio = [
-    filaFooterServicio("Subtotal:", cotizacion.subtotal, { top: 0.1, bottom: 0, left: 0, right: 0.1 }),
-    filaFooterServicio("IGV 18%:", cotizacion.igv, { top: 0, bottom: 0, left: 0, right: 0.1 }),
-    filaFooterServicio("TOTAL:", cotizacion.total, { top: 0, bottom: 0, left: 0, right: 0.1 }),
-  ];
+    ["Subtotal:", cotizacion.subtotal],
+    ...(totales.descuento > 0 ? [
+      [`Descuento ${totales.descuentoPorcentaje}%:`, -totales.descuento],
+      ["Valor de venta:", totales.subtotalConDescuento],
+    ] : []),
+    ["IGV 18%:", cotizacion.igv],
+    ["TOTAL:", cotizacion.total],
+  ].map(([etiqueta, valor], i) =>
+    filaFooterServicio(etiqueta, valor, { top: i === 0 ? 0.1 : 0, bottom: 0, left: 0, right: 0.1 })
+  );
   autoTable(doc, {
     startY: y,
-    head: [["#", "Descripción", "Cant.", "Precio", "Mon.", "Subtotal"]],
+    // "Mon." con padding horizontal mínimo: con el padding normal no entraba
+    // en los 10 mm de la columna y se partía en dos líneas ("Mon" / "."),
+    // duplicando el alto de todo el encabezado.
+    head: [["#", "Descripción", "Cant.", "Precio", { content: "Mon.", styles: { halign: "center", cellPadding: { top: 1.5, right: 0.5, bottom: 1.5, left: 0.5 } } }, "Subtotal"]],
     body: cotizacion.items.map((item, i) => {
       // Ítems informativos (sin costo propio, p.ej. sub-agrupaciones del
       // catálogo) suelen quedar en 0.00 — se ocultan #, Cantidad, Moneda,
@@ -249,7 +269,10 @@ export const exportarCotizacionPdf = async (cotizacion) => {
     body: filasFooterServicio,
     theme: "grid",
     margin: { left: 10, right: 10 },
-    styles: { fontSize: 9, halign: "right", fontStyle: "bold", textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fillColor: false },
+    // Las filas del pie no se separan entre páginas: si no entran todas, el
+    // bloque completo pasa a la siguiente.
+    pageBreak: "avoid",
+    styles: { fontSize: 9, halign: "right", fontStyle: "bold", textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fillColor: false, cellPadding: { top: 1, right: 2, bottom: 1, left: 2 } },
     columnStyles: {
       0: { cellWidth: 8 },
       1: { cellWidth: 106 },
@@ -273,16 +296,20 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   ];
   const cierre = "Sin otro en particular quedamos a la espera de su grata orden de compra.";
   const cierreLineas = doc.splitTextToSize(cierre, PAGE_R - 14);
+  // Interlineado y separaciones ajustados al mínimo legible: con los valores
+  // anteriores (5 mm por línea, 10-12 mm entre párrafos) una cotización de 3
+  // ítems ya no entraba en una hoja y el bloque saltaba solo a la segunda.
+  const LH = 4.5;
   const altoBloqueCondiciones =
-    6 +                          // "Condiciones comerciales:" + salto
-    condiciones.length * 5 +     // filas de condiciones
-    5 +                          // espacio antes del cierre
-    cierreLineas.length * 5 + 10 + // párrafo de cierre + espacio
-    12 + 5 + 5 + 5;               // "Atentamente," + firma (3 líneas)
+    5 +                           // "Condiciones comerciales:" + salto
+    condiciones.length * LH +     // filas de condiciones
+    4 +                           // espacio antes del cierre
+    cierreLineas.length * LH + 7 + // párrafo de cierre + espacio
+    10 + LH * 2;                  // "Atentamente," + firma (3 líneas, hasta la última línea base)
   const pageH = doc.internal.pageSize.getHeight();
-  const altoReservadoLogos = 36; // altoLogo(20) + margen inferior(8) + aire
+  const altoReservadoLogos = 31; // altoLogo(20) + margen inferior(8) + aire
 
-  let y2 = doc.lastAutoTable.finalY + 10;
+  let y2 = doc.lastAutoTable.finalY + 7;
   if (y2 + altoBloqueCondiciones > pageH - altoReservadoLogos) {
     doc.addPage();
     y2 = 20;
@@ -291,27 +318,27 @@ export const exportarCotizacionPdf = async (cotizacion) => {
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.text("Condiciones comerciales:", 14, y2);
-  y2 += 6;
+  y2 += 5;
 
   doc.setFont("helvetica", "normal");
   condiciones.forEach(([label, valor]) => {
     doc.text(label, 14, y2);
     doc.text(":", 50, y2);
     doc.text(valor || "-", 54, y2);
-    y2 += 5;
+    y2 += LH;
   });
-  y2 += 5;
+  y2 += 4;
 
   doc.text(cierreLineas, 14, y2);
-  y2 += cierreLineas.length * 5 + 10;
+  y2 += cierreLineas.length * LH + 7;
 
   doc.text("Atentamente,", 14, y2);
-  y2 += 12;
+  y2 += 10;
   doc.setFont("helvetica", "bold");
   doc.text("JESUS HERRERA", 14, y2);
-  y2 += 5;
+  y2 += LH;
   doc.text("ALCOINSAC", 14, y2);
-    y2 += 5;
+  y2 += LH;
   doc.text("CEL: 969585300", 14, y2);
 
   // ─── Pie de página: logos de marcas representadas ───

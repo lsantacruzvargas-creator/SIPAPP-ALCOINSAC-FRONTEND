@@ -5,6 +5,7 @@ import {
   FlujoNegocio, TarjetaRelacion, Chip,
   badgePago, badgeOT, money, BotonAnular, BannerAnulado,
 } from "./detalleShared";
+import { formatearFecha, aInputFecha } from "../utils/fecha";
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 w-full transition";
 
@@ -34,7 +35,7 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
     numeroGuiaRemision: orden.numeroGuiaRemision || "",
     codigoSap:          orden.codigoSap          || "",
     fechaSalida: orden.fechaSalida
-      ? new Date(orden.fechaSalida).toISOString().split("T")[0] : "",
+      ? aInputFecha(orden.fechaSalida) : "",
   });
   const [calc, setCalc]           = useState(calcular(subtotalInicial));
   const [empresas, setEmpresas]   = useState([]);
@@ -352,7 +353,7 @@ export default function DetalleOrdenCompra({ orden, onClose, onGuardada, factura
               vacio={informes.length === 0}>
               {ultimo?.fechaHoraGuardado && (
                 <p className="text-xs text-gray-500">
-                  Último: {new Date(ultimo.fechaHoraGuardado).toLocaleDateString("es-PE")}
+                  Último: {formatearFecha(ultimo.fechaHoraGuardado)}
                 </p>
               )}
               {ultimo?.personalEncargado?.nombre && (

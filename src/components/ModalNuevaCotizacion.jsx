@@ -1,27 +1,22 @@
 import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
-import { calcSubtotal, itemInvalido, OPCIONES_FORMA_PAGO } from "../utils/cotizacionItems";
+import { calcSubtotal, calcularTotales, itemInvalido, OPCIONES_FORMA_PAGO } from "../utils/cotizacionItems";
 import TablaItemsCotizacion from "./TablaItemsCotizacion";
 import { FlujoNegocio, TarjetaRelacion, money } from "./detalleShared";
+import { fechaHoyLima } from "../utils/fecha";
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-full transition";
-
-function calcular(sub) {
-  const s = Math.round(Number(sub) * 100) / 100 || 0;
-  const igv = Math.round(s * 0.18 * 100) / 100;
-  return { subtotal: s, igv, total: Math.round((s + igv) * 100) / 100 };
-}
 
 // plazoEntrega/validezOferta/atencion arrancan con su texto por defecto ya
 // en el estado (no solo mostrado en el input) — si no, quedaban vacíos en
 // el PDF aunque el form se viera lleno con el valor por defecto.
 const FORM_VACIO = {
   empresa: "", tipo: "venta", numeroCotizacion: "", atencion: "Area de compras",
-  fecha: new Date().toISOString().split("T")[0], fechaRecibida: "",
+  fecha: "", fechaRecibida: "",
   titulo: "", encargado: "", planta: "", contactoNombre: "", condicionPago: "",
   plazoEntrega: "2 días recibida la OC", lugarEntrega: "", validezOferta: "15 días",
   numeroGuiaEmision: "", numeroGuiaRemision: "", codigoSap: "", fechaSalida: "",
-  subtotal: "", moneda: "PEN",
+  subtotal: "", descuentoPorcentaje: "", moneda: "PEN",
 };
 
 const PASOS_VACIOS = [
@@ -41,7 +36,7 @@ const PASOS_VACIOS = [
 // cotización se sientan como la misma pantalla — antes esto era un modal
 // centrado sin ese diseño.
 export default function ModalNuevaCotizacion({ onClose, onCreada }) {
-  const [form, setForm] = useState(FORM_VACIO);
+  const [form, setForm] = useState(() => ({ ...FORM_VACIO, fecha: fechaHoyLima() }));
   const [items, setItems] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [guardando, setGuardando] = useState(false);
@@ -78,7 +73,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
 
   const subtotalItems = parseFloat(items.reduce((acc, i) => acc + calcSubtotal(i), 0).toFixed(2));
   const usarTotalesDeItems = items.length > 0;
-  const totalesMostrados = usarTotalesDeItems ? calcular(subtotalItems) : calcular(form.subtotal);
+  const totalesMostrados = calcularTotales(usarTotalesDeItems ? subtotalItems : form.subtotal, form.descuentoPorcentaje);
 
   const guardar = async () => {
     setIntentoGuardar(true);
@@ -102,6 +97,7 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
       lugarEntrega: form.lugarEntrega,
       validezOferta: form.validezOferta,
       subtotal: totalesMostrados.subtotal,
+      descuentoPorcentaje: totalesMostrados.descuentoPorcentaje,
       igv: totalesMostrados.igv,
       total: totalesMostrados.total,
       numeroGuiaEmision: form.numeroGuiaEmision,
@@ -338,6 +334,16 @@ export default function ModalNuevaCotizacion({ onClose, onCreada }) {
                 ) : (
                   <input type="number" name="subtotal" value={form.subtotal} onChange={handleChange}
                     step="0.01" min="0" placeholder="0.00" className={`${INP} text-lg font-semibold`} />
+                )}
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Descuento global (%)</label>
+                <input type="number" name="descuentoPorcentaje" value={form.descuentoPorcentaje} onChange={handleChange}
+                  step="0.01" min="0" max="100" placeholder="0" className={INP} />
+                {totalesMostrados.descuento > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    −{totalesMostrados.descuento.toFixed(2)} · Subtotal con descuento: {totalesMostrados.subtotalConDescuento.toFixed(2)}
+                  </p>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">

@@ -1,6 +1,7 @@
 import { imgUrl } from "../utils/fetchAuth";
 import { tipoInformePorValor, claveChecklist } from "../utils/informesTecnicos";
 import { exportarInformeTecnicoExcel } from "../utils/informeTecnicoExcel";
+import { formatearFecha } from "../utils/fecha";
 
 function Campo({ label, valor }) {
   return (
@@ -185,7 +186,7 @@ export default function VistaInformeTecnico({ informe, ordenTrabajo, onClose, on
             <div className="grid grid-cols-3 gap-4">
               <Campo label="Hecho por" valor={informe.hechoPor} />
               <Campo label="V.B." valor={informe.vB} />
-              <Campo label="Fecha" valor={informe.fecha ? new Date(informe.fecha).toLocaleDateString("es-PE") : ""} />
+              <Campo label="Fecha" valor={informe.fecha ? formatearFecha(informe.fecha) : ""} />
             </div>
           </div>
         </div>

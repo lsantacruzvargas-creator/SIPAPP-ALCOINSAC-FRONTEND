@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
 import { INP } from "../utils/cotizacionItems";
+import { aInputFecha } from "../utils/fecha";
 
 const PRIORIDADES = ["alta", "media", "baja"];
 const ESTADOS = ["pendiente", "en progreso", "completado", "entregado"];
@@ -27,11 +28,11 @@ export default function ModalEditarOT({ orden, onClose, onGuardada }) {
     prioridad: orden.prioridad || "media",
     estado: orden.estado || "pendiente",
     fechaEntrega: orden.fechaEntrega
-      ? new Date(orden.fechaEntrega).toISOString().split("T")[0]
+      ? aInputFecha(orden.fechaEntrega)
       : "",
     personalAsignado: orden.personalAsignado?._id || "",
     fechaRecibida: orden.fechaRecibida
-      ? new Date(orden.fechaRecibida).toISOString().split("T")[0]
+      ? aInputFecha(orden.fechaRecibida)
       : "",
     numeroOT: orden.numeroOT || "",
     numeroGuiaEmision: orden.numeroGuiaEmision || "",

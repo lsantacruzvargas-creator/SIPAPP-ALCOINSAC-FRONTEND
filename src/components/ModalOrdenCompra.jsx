@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { fetchAuth } from "../utils/fetchAuth";
+import { calcularTotales } from "../utils/cotizacionItems";
 
 const INP    = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 w-full";
 const INP_RO = "border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 w-full cursor-not-allowed";
@@ -17,7 +18,11 @@ export default function ModalOrdenCompra({ cotizacion, onClose, onCreada }) {
   // del valor real — se habilita y se simplifica para que el estado y el
   // input manejen el mismo número, sin conversión de por medio.
   const [monto, setMonto] = useState(() =>
-    cotizacion.subtotal != null ? Number(cotizacion.subtotal) : (Number(cotizacion.total) || 0) / 1.18
+    // `cotizacion.subtotal` es el bruto — la OC parte del subtotal ya con
+    // el descuento global aplicado.
+    cotizacion.subtotal != null
+      ? calcularTotales(cotizacion.subtotal, cotizacion.descuentoPorcentaje).subtotalConDescuento
+      : (Number(cotizacion.total) || 0) / 1.18
   );
   const [numeroOrden, setNumeroOrden] = useState("");
   const [guardando, setGuardando] = useState(false);

@@ -4,6 +4,7 @@ import { fetchAuth } from "../utils/fetchAuth";
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
+import { anioLima, mesLima } from "../utils/fecha";
 
 // ── Colores ──────────────────────────────────────────────────────────────────
 const COLOR_OT = {
@@ -213,8 +214,8 @@ function porFecha(arr, campoFecha, ano, mes) {
   return arr.filter((item) => {
     const f = item[campoFecha] ? new Date(item[campoFecha]) : null;
     if (!f) return true;
-    if (ano && f.getFullYear() !== parseInt(ano)) return false;
-    if (mes && f.getMonth() + 1 !== parseInt(mes)) return false;
+    if (ano && anioLima(f) !== parseInt(ano)) return false;
+    if (mes && mesLima(f) !== parseInt(mes)) return false;
     return true;
   });
 }
@@ -245,10 +246,10 @@ export default function Dashboard() {
 
   // ── Años disponibles (union de todos los datos) ──────────────────────────
   const anos = [...new Set([
-    ...facts.map((f) => new Date(f.fechaEmision).getFullYear()),
-    ...cots.map((c) => c.fecha ? new Date(c.fecha).getFullYear() : null),
-    ...ocs.map((o) => o.fecha  ? new Date(o.fecha).getFullYear()  : null),
-    ...ots.map((o) => o.fecha  ? new Date(o.fecha).getFullYear()  : null),
+    ...facts.map((f) => anioLima(f.fechaEmision)),
+    ...cots.map((c) => c.fecha ? anioLima(c.fecha) : null),
+    ...ocs.map((o) => o.fecha  ? anioLima(o.fecha)  : null),
+    ...ots.map((o) => o.fecha  ? anioLima(o.fecha)  : null),
   ].filter(Boolean))].sort((a, b) => b - a);
 
   // ── Arrays filtrados ─────────────────────────────────────────────────────

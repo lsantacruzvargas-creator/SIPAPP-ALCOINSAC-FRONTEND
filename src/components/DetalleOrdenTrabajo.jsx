@@ -13,6 +13,7 @@ import {
   FlujoNegocio, TarjetaRelacion, Chip,
   badgePago, badgeOT, money, BotonAnular, BannerAnulado,
 } from "./detalleShared";
+import { formatearFecha, aInputFecha } from "../utils/fecha";
 
 const INP = "border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 w-full transition";
 const RO  = "bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-sm text-gray-600 w-full";
@@ -32,7 +33,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
   const [form, setForm] = useState({
     numeroOT:           inicial.numeroOT           || "",
     fechaRecibida: inicial.fechaRecibida
-      ? new Date(inicial.fechaRecibida).toISOString().split("T")[0] : "",
+      ? aInputFecha(inicial.fechaRecibida) : "",
     codigoSap:          inicial.codigoSap          || "",
     empresa:            inicial.empresa?._id       || "",
     planta:             inicial.planta             || "",
@@ -44,7 +45,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
     numeroGuiaEmision:  inicial.numeroGuiaEmision  || "",
     numeroGuiaRemision: inicial.numeroGuiaRemision || "",
     fechaSalida: inicial.fechaSalida
-      ? new Date(inicial.fechaSalida).toISOString().split("T")[0] : "",
+      ? aInputFecha(inicial.fechaSalida) : "",
     protocolo:          inicial.protocolo          || "",
     observaciones:      inicial.observaciones      || "",
     estado:             inicial.estado             || "pendiente",
@@ -429,7 +430,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
               crearLabel="informe">
               {ultimo?.fechaHoraGuardado && (
                 <p className="text-xs text-gray-500">
-                  Último: {new Date(ultimo.fechaHoraGuardado).toLocaleDateString("es-PE")}
+                  Último: {formatearFecha(ultimo.fechaHoraGuardado)}
                 </p>
               )}
             </TarjetaRelacion>
@@ -486,7 +487,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
                         <td className="py-2 pr-3 font-mono text-xs text-gray-700">{inf.codigo}</td>
                         <td className="py-2 pr-3 text-gray-600">{tipoInformePorValor(inf.tipo)?.label || inf.tipo}</td>
                         <td className="py-2 pr-3 text-gray-500">
-                          {inf.fechaHoraGuardado ? new Date(inf.fechaHoraGuardado).toLocaleDateString("es-PE") : "—"}
+                          {inf.fechaHoraGuardado ? formatearFecha(inf.fechaHoraGuardado) : "—"}
                         </td>
                       </tr>
                     ))}
@@ -548,7 +549,7 @@ export default function DetalleOrdenTrabajo({ orden: inicial, onClose, onGuardad
                           </Chip>
                         </td>
                         <td className="py-2 pr-3 text-gray-500">
-                          {req.createdAt ? new Date(req.createdAt).toLocaleDateString("es-PE") : "—"}
+                          {req.createdAt ? formatearFecha(req.createdAt) : "—"}
                         </td>
                       </tr>
                     );

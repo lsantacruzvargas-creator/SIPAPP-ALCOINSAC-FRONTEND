@@ -3,12 +3,13 @@ import { fetchAuth } from "../utils/fetchAuth";
 import { money } from "../components/detalleShared";
 import * as XLSX from "xlsx";
 import { filasExcelSeguras } from "../utils/excelSeguro";
+import { formatearFecha } from "../utils/fecha";
 
 const TH = "px-4 py-3 font-semibold text-gray-500 whitespace-nowrap";
 const VACIO = { valorizado: { total: 0, materiales: [] }, consumo: [], ocSinFactura: [], otSinCotizacion: [], facturasSinPago: [] };
 
 const nombreEmpresa = (e) => e?.razonSocial || "Sin empresa";
-const fecha = (f) => f ? new Date(f).toLocaleDateString("es-PE") : "—";
+const fecha = (f) => f ? formatearFecha(f) : "—";
 
 function TarjetaTotal({ label, valor }) {
   return (
