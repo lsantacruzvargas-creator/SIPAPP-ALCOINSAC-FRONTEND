@@ -29,7 +29,7 @@ const LOGOS_MARCAS = [
 ];
 
 export const exportarCotizacionPdf = async (cotizacion) => {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ compress: true });
   const empresa = cotizacion.empresa;
   const PAGE_R = 196;
 
